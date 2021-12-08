@@ -241,7 +241,7 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
 			for (final InventoryItem item : theMap.get(mdType)) {
 
 				Element member = document.createElement("members");
-				member.setTextContent(item.itemName);
+				member.setTextContent(item.getItemName());
 
 				if (this.includeChangeData) {
 					member.setAttribute("lastmodifiedby", item.getLastModifiedByName());

@@ -6,7 +6,7 @@ import com.sforce.soap.metadata.DescribeMetadataObject;
 import com.sforce.soap.metadata.FileProperties;
 
 public class InventoryItem {
-	public String itemName;
+	private String itemName;
 	public String itemExtendedName;
 	public FileProperties fp;
 	public boolean isFolder;
@@ -18,6 +18,22 @@ public class InventoryItem {
 	public String localFileName;
 	public DescribeMetadataObject describe;
 	public String folderName;
+        
+        public DescribeMetadataObject getDescribeMetadataObject() {
+            return describe;
+        }
+        
+        public FileProperties getFileProperties() {
+            return fp;
+        }
+        
+        public String getItemName() {
+            //Managed Package Layouts need to be renamed to include the namespace prefix before the layout name. 
+            if(fp != null && fp.getType().equals("Layout")&& fp.getNamespacePrefix() != null){
+                return itemName.replaceFirst("\\-", "-" + fp.getNamespacePrefix() +  "__");
+            }
+            return itemName;
+        }
 	
 	public InventoryItem(String i, FileProperties f, boolean isF, DescribeMetadataObject d) {
 		initItem(i, f, d);

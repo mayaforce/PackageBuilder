@@ -31,7 +31,7 @@ public class OrgRetrieve {
 
 	// manifest file that controls which components get retrieved
 	private String manifestFile;
-	private double apiVersion    = 48.0;
+	private double apiVersion    = 48.0; //TODO fix me
 
 	// what to retrieve if not based on package.xml file
 
@@ -40,7 +40,7 @@ public class OrgRetrieve {
 	private HashMap<String, ArrayList<InventoryItem>> inventoryToRetrieve;
 
 	// maximum number of attempts to deploy the zip file
-	private int maxPolls = 200;
+	private int maxPolls = 200; //TODO fix me
 
 	public OrgRetrieve(final Level level) {
 		this.logger.setLevel(level);

@@ -43,6 +43,7 @@ import com.kgal.packagebuilder.PackageBuilder;
 import com.kgal.packagebuilder.PackageBuilderCommandLine;
 import com.kgal.packagebuilder.inventory.GitInventoryItem;
 import com.kgal.packagebuilder.inventory.InventoryItem;
+import java.util.Properties;
 
 /**
  * @author swissel
@@ -50,7 +51,7 @@ import com.kgal.packagebuilder.inventory.InventoryItem;
  */
 public class GitOutputManager {
 
-	private final Map<String, String> 	parameters;
+	private final Properties 	parameters;
 	private final File                	gitPath;
 	private final File                	sourceDirPath;
 	private final Logger 				logger;
@@ -58,7 +59,7 @@ public class GitOutputManager {
 	
 	private static String				sourceFolder = "src";
 
-	public GitOutputManager(final Map<String, String> parameters, Logger l) {
+	public GitOutputManager(final Properties parameters, Logger l) {
 		this.parameters = parameters;
 		//        this.gitPath = new File(this.getParam(PackageBuilderCommandLine.METADATATARGETDIR_LONGNAME, "src"));
 		this.gitPath = findGitRoot(this.getParam(PackageBuilderCommandLine.METADATATARGETDIR_LONGNAME, sourceFolder));
@@ -216,8 +217,8 @@ public class GitOutputManager {
 	}
 
 	private String getParam(final String paramName, final String defaultValue) {
-		return (this.parameters.containsKey(paramName) && this.parameters.get(paramName) != null)
-				? this.parameters.get(paramName)
+		return (this.parameters.containsKey(paramName) && this.parameters.getProperty(paramName) != null)
+				? this.parameters.getProperty(paramName)
 						: defaultValue;
 	}
 

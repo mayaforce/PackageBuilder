@@ -28,6 +28,10 @@ import java.util.Map;
 import org.junit.Test;
 
 import com.kgal.packagebuilder.PackageBuilderCommandLine;
+import java.io.FileNotFoundException;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author swissel
@@ -41,9 +45,13 @@ public class PackageBuilderCommandLineTest {
         System.out.println("Current working directory : " + workingDir);
         PackageBuilderCommandLine pbc = new PackageBuilderCommandLine();
         String[] args = new String[1];
-        args[0] = "-o properties/test.properties";
-        pbc.parseCommandLine(args);
-        Map<String,String> result = pbc.getParameters();
+        args[0] = "--buildprops=properties/test.properties";
+        try {
+            pbc.parseCommandLine(args);
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(PackageBuilderCommandLineTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        Properties result = pbc.getParameters();
         assertTrue(result.containsKey(PackageBuilderCommandLine.SKIPPATTERNS_LONGNAME));
         assertTrue(result.containsKey(PackageBuilderCommandLine.PASSWORD_LONGNAME));
         assertTrue(result.containsKey(PackageBuilderCommandLine.BASEDIRECTORY_LONGNAME));
@@ -65,7 +73,12 @@ public class PackageBuilderCommandLineTest {
         PackageBuilderCommandLine pbc = new PackageBuilderCommandLine();
         String[] args = new String[1];
         args[0] = "";
-        boolean result = pbc.parseCommandLine(args);
+        boolean result = false;
+        try {
+            result = pbc.parseCommandLine(args);
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(PackageBuilderCommandLineTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
         assertTrue(!result);        
     }
     
@@ -73,10 +86,14 @@ public class PackageBuilderCommandLineTest {
     public final void testGitParam() {
         PackageBuilderCommandLine pbc = new PackageBuilderCommandLine();
         String[] args = new String[2];
-        args[0] = "-o properties/test.properties";
+        args[0] = "-bproperties/test.properties";
         args[1] = "-g";
-        pbc.parseCommandLine(args);
-        Map<String,String> result = pbc.getParameters();
+        try {
+            pbc.parseCommandLine(args);
+        } catch (FileNotFoundException ex) {
+            Logger.getLogger(PackageBuilderCommandLineTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        Properties result = pbc.getParameters();
         assertEquals("true", result.get(PackageBuilderCommandLine.INCLUDECHANGEDATA_LONGNAME));
         assertEquals("true", result.get(PackageBuilderCommandLine.DOWNLOAD_LONGNAME));
         assertEquals("true", result.get(PackageBuilderCommandLine.GITCOMMIT_LONGNAME));        

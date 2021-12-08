@@ -73,7 +73,7 @@ public class InventoryDatabase {
 			for (InventoryItem i : typeDb) {
 				// check if the name matches
 
-				if (item.itemName == i.itemName) {
+				if (item.getItemName() == i.getItemName()) {
 					foundItem = i;
 					if (foundItem.getLastModifiedDate().equals(item.getLastModifiedDate())) {
 						// we have an exact match, stop looking
