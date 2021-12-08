@@ -5,82 +5,58 @@ This is a tool for salesforce.com. It can do one of two things:
 * connect to an org and generate a package.xml that can subsequently be used with the Force.com Migration Tool to extract code and metadata from an org.
 * examine a directory containing an unzipped Force.com Migration Tool package and generate a package.xml 
 
-Current downloads support API up to 51 (Spring 21)
-
-Please see http://bit.ly/PckBldDoc for full documentation.
 
 ### Usage:
 ``` 
-java -jar PackageBuilder.jar [-o <parameter file1>,<parameterfile2>,...] [-u <SF username>] [-p <SF password>] [-s <SF url>] [-a <apiversion>] [-mi <metadataType1>,<metadataType2>,...] [-sp <pattern1>,<pattern2>,...] [-d <destinationpath>] [-v]
+usage: java -jar PackageBuilder.jar [-w basedirectory] [-b <parameter
+            file1>] [-u <SF username>] [-p <SF password>]
+ -b,--buildprops <arg>          file containing org parameters (see below)
+ -c,--connectprops <arg>        file containing environment connection
+                                parameters. sf.username, sf.password,
+                                sf.apiversion, sf.serverurl(see below)
+ -a,--sf.apiversion <arg>       api version to use, will default to 53.0
+                                sf.apiversion in property file
+ -s,--sf.serverurl <arg>        server URL for the org
+                                (https://login.salesforce.com)
+                                sf.serverurl in property file
+ -p,--sf.password <arg>         password for the org (t0pSecr3t)
+                                sf.password in property file
+ -q,--sf.token <arg>            token for the org (t0pSecr3t)
+                                sf.password in property file
+ -u,--sf.username <arg>         username for the org
+                                (someuser@someorg.com)
+                                sf.username in property file"
+ -t,--destination <arg>         directory where the generated package.xml
+                                will be written
+ -m,--metadatatargetdir <arg>   Directory to download meta data source
+                                (different to where package.xml will go)
+                                to
+ -o,--loglevel <arg>            output log level (INFO, FINE, FINER make
+                                sense) - defaults to INFO if not provided
+ -d,--download                  directly download assets, removing the
+                                need for ANT or MDAPI call
+ -g,--gitcommit                 commits the changes to git. Requires -d -c
+                                options
+ -l,--localonly                 Don't re-download package.zip files, but
+                                process existing ones
+ -f,--unzip                     unzip any retrieved package(s)
+ -w,--basedirectory <arg>       base directory from which to generate
+                                package.xml
+ -k,--retaintargetdir           do not clear the metadatatargetdir
+                                provided when unzipping
 ```
-
-or 
-``` 
-java -jar PackageBuilder.jar -d <destinationpath> -b <packagePath>
-```
-
-* -o,--orgfile `<arg>`          
-file containing org parameters (see below)
-* -u,--username `<arg>`         
-username for the org (someuser@someorg.com)
-* -p,--password `<arg>`        
-password for the org (t0pSecr3t)
-* -s,--serverurl `<arg>`        
-server URL for the org (https://login.salesforce.com)
-* -a,--apiversion `<arg>`
-api version to use, will default to 48.0
-* -mi,--metadataitems `<arg>`   
-metadata items to fetch (commaseparated list of metadata types in package.xml naming). If this parameter is not provided, PackageBuilder will query the org and inventory everything a Metadata Describe returns to it.
-* -d,--destination `<arg>`    
-directory where the generated package.xml will be written
-* -b,--basedirectory `<arg>`    
-directory where the the code will look for a SFDC package structure (e.g. classes folder, objects folder, etc.)
-* -ll,--loglevel
-output log level (INFO, FINE, FINER make sense) - defaults to INFO if not provided
-* -c,--includechangedata
-include data on who last changed the item directly in the members tag of every item of the package.xml
-* -mx,--maxitems `<arg>`    
-max number of items to put into a single package.xml (10000 is current max enforced by SF platform, for API 33 and higher, 5000 before)
-* -do,--download
-execute a retrieve from the org using the generated package(s)
-* -uz,--unzip
-unzip any retrieved package(s)
-* -mt,--metadatatargetdir
-place unzipped downloaded packages in this directory (else defaults to current directory)
-* -spp,--stripprofileuserpermissions
-if using -do, and the package contains Profiles, unzip the package and remove all userPermissions from each Profile file, then zip again
-* -in,--includenamespaceditems
-include items from managed packages, including the managed packages themselves. If this flag is not set, anything from a managed package will be ignored - see also -imp below
-* -imp,--includemanagedpackages
-include managed packages only - so InstalledPackage::MyPackage is included, but CustomObject::MyPackage__MyCustomObject__c is not
-
-
 #### Filtering what goes in the package
 
-* -sp,--skippatterns `<arg>`    
-name patterns to skip when fetching. 
-* -ip,--includepatterns `<arg>`    
-name patterns to skip when fetching
+
 
 When filtering by item name, the PackageBuilder will create an artificial name by prepending the metadata type to the actual item name, so e.g. the Opportunity field My_field__c will be represented internally as `CustomField:Opportunity.My_field__c`. This enables writing more precise patterns like `CustomField:Opportunity.*` which will filter all custom fields on the Opportunity object, as opposed to the pattern `.*Opportunity.*` which would match anything and everything associated with the Opportunity object and beyond (e.g. an Account field called Parent_Opportunity__c).
 
 Multiple patterns can be provided separated by commas. Unpredictable behavior if your pattern includes commas.
 
-* -se,--skipemail `<arg>`    
-email patterns to skip when fetching. 
-* -ie,--includeemail `<arg>`    
-email patterns to skip when fetching
-* -su,--skipusername `<arg>`    
-user name patterns to skip when fetching. 
-* -iu,--includeusername `<arg>`    
-user name patterns to include when fetching
 
 This filter works against the email/name of the user who is the last to have modified a given item.
 
-* -fd,--fromdate `<arg>`    
-date (YYYY-[M]M-[D]D). All items modified on or after this date (and respecting the td flag) will be included in the result
-* -td,--todate `<arg>`    
-date (YYYY-[M]M-[D]D). All items modified before or on this date (and respecting the fd flag) will be included in the result
+
 
 All parameters can be provided in parameter files specified with the -o parameter. More than one file can be provided (as in the example below, where one file would define what to fetch, skippatterns, etc., and the other where to fetch from). If any parameters are provided both in files and on the command line, the command line ones will be used. 
 
@@ -104,36 +80,7 @@ skipItems=.*fflib_.*,.*Class:AWS.*,ApexPage.*
 targetdirectory=src
 ```
 
-###### Yes, I know that the property file parameters should be better aligned to the longnames of the commandline parameters. Coming in a future version!
-
----
-
 #### Example: 
-```
-java -jar PackageBuilder.jar -d src -o packagebuilder.properties,org.properties -a 39.0
-```
-Will run the packagebuilder outputting `package.xml` to the `src` folder, using parameters specified in the `packagebuilder.properties` and `org.properties` 
-
-```
-java -jar PackageBuilder.jar -d src -o packagebuilder.properties,org.properties -a 44.0 -c
-```
-Will run the packagebuilder outputting `package.xml` to the `src` folder, using parameters specified in the `packagebuilder.properties` and `org.properties`. 
-
-In addition, instead of outputting e.g. 
-`<members>ChangePasswordController</members>`
-
-will output
-
-`<members lastmodifiedby="John Doe" lastmodified="2018-10-14T20:45:13"" lastmodifiedemail="johndoe@example.com">ChangePasswordController</members>`
-
-
-
-```
-java -jar PackageBuilder.jar -d dst -b src
-```
-Will run the packagebuilder, inventory the `src` directory and write a `dst/package.xml` file corresponding to the (recognized) content in the directory
-
-See properties files for additional detail - should be self-explanatory
 
 #### Use of changedata parameter
 The changedata parameter will augment the generated package.xml file with data about who/when last changed the given metadata item. So instead of getting 
