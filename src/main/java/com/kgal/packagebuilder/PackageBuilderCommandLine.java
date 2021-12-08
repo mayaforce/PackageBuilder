@@ -92,7 +92,7 @@ public class PackageBuilderCommandLine {
         boolean canProceed = false;
 
         // put in default parameters
-        buildProps.put(PbProperties.APIVERSION, "" + PbConstants.DEFAULT_API_VERSION);
+        buildProps.put(PbProperties.APIVERSION, PbConstants.DEFAULT_API_VERSION);
 
         // now parse the command line
         final CommandLineParser parser = new DefaultParser();
@@ -104,7 +104,7 @@ public class PackageBuilderCommandLine {
             Iterator<Option> i = line.iterator();
             while (i.hasNext()) {
                 Option opt = i.next();
-                if (opt.hasOptionalArg()) {
+                if (options.getOption(opt.getLongOpt()).hasArg()) { 
                     buildProps.put(opt.getLongOpt(), opt.getValue());
                 } else {
                     buildProps.put(opt.getLongOpt(), "true");
@@ -215,7 +215,7 @@ public class PackageBuilderCommandLine {
         formatter.setOptionComparator(null);
 
         formatter.printHelp(
-                "java -jar PackageBuilder.jar [-b basedirectory] [-o <parameter file1>,<parameter file2>] [-u <SF username>] [-p <SF password>]",
+                "java -jar PackageBuilder.jar [-w basedirectory] [-b <parameter file1>] [-u <SF username>] [-p <SF password>]",
                 this.options);
     }
 
@@ -241,16 +241,7 @@ public class PackageBuilderCommandLine {
     }
 
     private void setupParameter(String shortParamName, String longParamName, String paramDescription, boolean hasArgs) {
-        if (hasArgs) {
-            this.options.addOption(Option.builder(shortParamName).longOpt(longParamName)
-                    .desc(paramDescription)
-                    .hasArg()
-                    .build());
-        } else {
-            this.options.addOption(Option.builder(shortParamName).longOpt(longParamName)
-                    .desc(paramDescription)
-                    .build());
-        }
+        this.options.addOption(new Option(shortParamName, longParamName, hasArgs, paramDescription));
     }
 
     private static void displayVersionNumber() throws IOException, XmlPullParserException {
