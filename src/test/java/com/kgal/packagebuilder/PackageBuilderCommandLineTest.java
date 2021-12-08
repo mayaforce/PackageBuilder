@@ -21,6 +21,7 @@
  */
 package com.kgal.packagebuilder;
 
+import com.kgal.migrationtoolutils.Utils;
 import static org.junit.Assert.*;
 
 import java.util.Map;
@@ -52,20 +53,20 @@ public class PackageBuilderCommandLineTest {
             Logger.getLogger(PackageBuilderCommandLineTest.class.getName()).log(Level.SEVERE, null, ex);
         }
         Properties result = pbc.getParameters();
-        assertTrue(result.containsKey(PackageBuilderCommandLine.SKIPPATTERNS_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.PASSWORD_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.BASEDIRECTORY_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.DESTINATION_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.SERVERURL_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.METADATAITEMS_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.INCLUDECHANGEDATA_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.APIVERSION_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.USERNAME_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.LOGLEVEL_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.FROMDATE_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.TODATE_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.DOWNLOAD_LONGNAME));
-        assertTrue(result.containsKey(PackageBuilderCommandLine.METADATATARGETDIR_LONGNAME));
+        assertTrue(result.containsKey(PbProperties.SKIPPATTERNS));
+        assertTrue(result.containsKey(PbProperties.PASSWORD));
+        assertTrue(result.containsKey(PbProperties.BASEDIRECTORY));
+        assertTrue(result.containsKey(PbProperties.DESTINATION));
+        assertTrue(result.containsKey(PbProperties.SERVERURL));
+        assertTrue(result.containsKey(PbProperties.METADATAITEMS));
+        assertTrue(result.containsKey(PbProperties.INCLUDECHANGEDATA));
+        assertTrue(result.containsKey(PbProperties.APIVERSION));
+        assertTrue(result.containsKey(PbProperties.USERNAME));
+        assertTrue(result.containsKey(PbProperties.LOGLEVEL));
+        assertTrue(result.containsKey(PbProperties.FROMDATE));
+        assertTrue(result.containsKey(PbProperties.TODATE));
+        assertTrue(result.containsKey(PbProperties.DOWNLOAD));
+        assertTrue(result.containsKey(PbProperties.METADATATARGETDIR));
     }
 
     @Test
@@ -94,9 +95,9 @@ public class PackageBuilderCommandLineTest {
             Logger.getLogger(PackageBuilderCommandLineTest.class.getName()).log(Level.SEVERE, null, ex);
         }
         Properties result = pbc.getParameters();
-        assertEquals("true", result.get(PackageBuilderCommandLine.INCLUDECHANGEDATA_LONGNAME));
-        assertEquals("true", result.get(PackageBuilderCommandLine.DOWNLOAD_LONGNAME));
-        assertEquals("true", result.get(PackageBuilderCommandLine.GITCOMMIT_LONGNAME));        
+        assertEquals("true", result.get(PbProperties.INCLUDECHANGEDATA));
+        assertEquals("true", result.get(PbProperties.DOWNLOAD));
+        assertEquals("true", result.get(PbProperties.GITCOMMIT));        
     }
     
 }

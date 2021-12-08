@@ -12,36 +12,24 @@ import com.sforce.ws.ConnectorConfig;
 
 public class LoginUtil {
 
-    private static final String APIVERSION = "44.0";
-
-    /*
-     * Properties key names
-     */
-
-    private static final String USERNAME_PROPSKEY   = "username";
-    private static final String PASSWORD_PROPSKEY   = "password";
-    private static final String URL_PROPSKEY        = "serverurl";
-    private static final String APIVERSION_PROPSKEY = "apiversion";
-
     /*
      * Creates a MetadataConnection based on url, credentials
      */
-
     public static MetadataConnection mdLogin(final Properties props, Logger logger) throws ConnectionException {
-        final String username = props.getProperty(LoginUtil.USERNAME_PROPSKEY);
-        final String password = props.getProperty(LoginUtil.PASSWORD_PROPSKEY);
-        String url = props.getProperty(LoginUtil.URL_PROPSKEY);
+        final String username = props.getProperty(PbProperties.USERNAME);
+        final String password = props.getProperty(PbProperties.PASSWORD);
+        final String token = props.getProperty(PbProperties.TOKEN);
+        String url = props.getProperty(PbProperties.URLBASE);
 
         if ((username != null) && (password != null) && (url != null)) {
 
             // check if it's the full url (contains /services/Soap/u/API), add
             // if necessary
-
             if (!(url.contains("/services/Soap/u/"))) {
-                url += "/services/Soap/u/" + props.getProperty(LoginUtil.APIVERSION_PROPSKEY, LoginUtil.APIVERSION);
+                url += "/services/Soap/u/" + props.getProperty(PbProperties.APIVERSION, PbConstants.DEFAULT_API_VERSION);
             }
 
-            return LoginUtil.mdLogin(url, username, password, logger);
+            return LoginUtil.mdLogin(url, username, password, token, logger);
         } else {
             return null;
         }
@@ -50,21 +38,20 @@ public class LoginUtil {
     /*
      * Creates a MetadataConnection based on a properties object
      */
-
-    public static MetadataConnection mdLogin(final String url, final String user, final String pwd, Logger logger)
+    public static MetadataConnection mdLogin(final String url, final String user, final String pwd, final String token, Logger logger)
             throws ConnectionException {
-        final LoginResult loginResult = LoginUtil.loginToSalesforce(user, pwd, url);
+        final LoginResult loginResult = LoginUtil.loginToSalesforce(user, pwd + token, url);
         return LoginUtil.createMetadataConnection(loginResult);
     }
 
-    public static PartnerConnection soapLogin(final String url, final String user, final String pwd, Logger logger) {
+    public static PartnerConnection soapLogin(final String url, final String user, final String pwd, final String token, Logger logger) {
 
         PartnerConnection conn = null;
 
         try {
             final ConnectorConfig config = new ConnectorConfig();
             config.setUsername(user);
-            config.setPassword(pwd);
+            config.setPassword(pwd + token);
 
             logger.log(Level.INFO, "AuthEndPoint: " + url);
             config.setAuthEndpoint(url);

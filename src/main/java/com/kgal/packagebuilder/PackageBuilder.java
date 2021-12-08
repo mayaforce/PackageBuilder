@@ -59,47 +59,9 @@ public class PackageBuilder {
         }
     }
 
-    // Static values that don't change
-    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
-    public static final String URLBASE = "/services/Soap/u/";
-    public static final int DEFAULT_MAXITEMSINPACKAGE = 30000;
-    public static final double DEFAULT_API_VERSION = 53.0;
-    public static final boolean DEFAULT_INCLUDECHANGEDATA = false;
-    public static final int CONCURRENT_THREADS = 8;
-
     // Logging
     private static final Logger logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
     private Level thisLogLevel;
-
-    private static final String[] STANDARDVALUETYPESARRAY = new String[]{"AccountContactMultiRoles",
-        "AccountContactRole", "AccountOwnership", "AccountRating", "AccountType", "AddressCountryCode",
-        "AddressStateCode",
-        "AssetStatus", "CampaignMemberStatus", "CampaignStatus", "CampaignType", "CaseContactRole", "CaseOrigin",
-        "CasePriority", "CaseReason",
-        "CaseStatus", "CaseType", "ContactRole", "ContractContactRole", "ContractStatus", "EntitlementType",
-        "EventSubject", "EventType",
-        "FiscalYearPeriodName", "FiscalYearPeriodPrefix", "FiscalYearQuarterName", "FiscalYearQuarterPrefix",
-        "IdeaCategory1",
-        "IdeaMultiCategory", "IdeaStatus", "IdeaThemeStatus", "Industry", "InvoiceStatus", "LeadSource",
-        "LeadStatus", "OpportunityCompetitor",
-        "OpportunityStage", "OpportunityType", "OrderStatus1", "OrderType", "PartnerRole", "Product2Family",
-        "QuestionOrigin1", "QuickTextCategory",
-        "QuickTextChannel", "QuoteStatus", "SalesTeamRole", "Salutation", "ServiceContractApprovalStatus",
-        "SocialPostClassification",
-        "SocialPostEngagementLevel", "SocialPostReviewedStatus", "SolutionStatus", "TaskPriority", "TaskStatus",
-        "TaskSubject", "TaskType",
-        "WorkOrderLineItemStatus", "WorkOrderPriority", "WorkOrderStatus"};
-
-    private static final String[] ADDITIONALTYPESTOADD = new String[]{"CustomLabel", "AssignmentRule",
-        "BusinessProcess", "CompactLayout", "CustomField", "FieldSet", "Index", "ListView", "NamedFilter", "RecordType", "SharingReason", "ValidationRule", "WebLink", // CustomObject components
-        "WorkflowActionReference", "WorkflowAlert", "WorkflowEmailRecipient", "WorkflowFieldUpdate", "WorkflowFlowAction", "WorkflowFlowActionParameter", // Workflow components
-        "WorkflowKnowledgePublish", "WorkflowOutboundMessage", "WorkflowRule", "WorkflowTask", "WorkflowTimeTrigger" // Workflow components
-};
-
-    private static final String[] ITEMSTOINCLUDEWITHPROFILESPERMSETS = new String[]{"ApexClass", "CustomApplication", "CustomField",
-        "CustomObject", "CustomTab", "ExternalDataSource", "RecordType", "ApexPage"};
-
-    private static final String[] SPECIALTREATMENTPERMISSIONTYPES = new String[]{"Profile", "PermissionSet"};
 
     // Collections
     private final HashSet<String> existingTypes = new HashSet<>();
@@ -114,9 +76,9 @@ public class PackageBuilder {
     private String srcUrl;
     private String srcUser;
     private String srcPwd;
+    private String srcToken;
     private String metaSourceDownloadDir = "src";
     private final long totalTimeStart = System.currentTimeMillis();
-    //	private String            dbFilename;
     private String targetDir = "";
     private OperationMode mode;
     private PartnerConnection srcPartnerConnection;
@@ -127,7 +89,7 @@ public class PackageBuilder {
     private boolean downloadData = false;
     private boolean gitCommit = false;
     private boolean simulateDataDownload = false;
-    private int maxItemsInRegularPackage = PackageBuilder.DEFAULT_MAXITEMSINPACKAGE;
+    private int maxItemsInRegularPackage = PbConstants.DEFAULT_MAXITEMSINPACKAGE;
     private boolean unzipDownload = false;
     private int itemCount;
 
@@ -142,45 +104,53 @@ public class PackageBuilder {
         // set loglevel based on parameters
         String paramLogLevel = parameters.getProperty("loglevel");
         thisLogLevel = Level.INFO;
-        if ("FINE".equals(paramLogLevel)) {
-            thisLogLevel = Level.FINE;
-        } else if ("FINER".equals(paramLogLevel)) {
-            thisLogLevel = Level.FINER;
-        } else if ("FINEST".equals(paramLogLevel)) {
-            thisLogLevel = Level.FINEST;
+        if (null != paramLogLevel) {
+            switch (paramLogLevel) {
+                case "FINE":
+                    thisLogLevel = Level.FINE;
+                    break;
+                case "FINER":
+                    thisLogLevel = Level.FINER;
+                    break;
+                case "FINEST":
+                    thisLogLevel = Level.FINEST;
+                    break;
+                default:
+                    break;
+            }
         }
 
         logger.setLevel(thisLogLevel);
         logger.setUseParentHandlers(false);
-        final LogFormatter formatter = new LogFormatter();
+        final LogFormatter formatter = new LogFormatter(thisLogLevel);
         final ConsoleHandler handler = new ConsoleHandler();
         handler.setFormatter(formatter);
         handler.setLevel(thisLogLevel);
         logger.addHandler(handler);
 
         // Check what to do based on parameters
-        this.includeChangeData = this.isParamTrue(PackageBuilderCommandLine.INCLUDECHANGEDATA_LONGNAME);
-        this.downloadData = this.isParamTrue(PackageBuilderCommandLine.DOWNLOAD_LONGNAME);
-        this.gitCommit = this.isParamTrue(PackageBuilderCommandLine.GITCOMMIT_LONGNAME);
-        this.simulateDataDownload = this.isParamTrue(PackageBuilderCommandLine.LOCALONLY_LONGNAME);
-        this.unzipDownload = this.isParamTrue(PackageBuilderCommandLine.UNZIP_LONGNAME);
-        this.maxItemsInRegularPackage = Integer.valueOf(parameters.getProperty(PackageBuilderCommandLine.MAXITEMS_LONGNAME));
-        this.includeNamespacedItems = this.isParamTrue(PackageBuilderCommandLine.INCLUDENAMESPACEDITEMS_LONGNAME);
-        this.includeManagedPackagesOnly = this.isParamTrue(PackageBuilderCommandLine.INCLUDEMANAGEDPACKAGES_LONGNAME);
+        this.includeChangeData = this.isParamTrue(PbProperties.INCLUDECHANGEDATA);
+        this.downloadData = this.isParamTrue(PbProperties.DOWNLOAD);
+        this.gitCommit = this.isParamTrue(PbProperties.GITCOMMIT);
+        this.simulateDataDownload = this.isParamTrue(PbProperties.LOCALONLY);
+        this.unzipDownload = this.isParamTrue(PbProperties.UNZIP);
+        this.maxItemsInRegularPackage = Integer.valueOf(parameters.getProperty(PbProperties.MAXITEMS));
+        this.includeNamespacedItems = this.isParamTrue(PbProperties.INCLUDENAMESPACEDITEMS);
+        this.includeManagedPackagesOnly = this.isParamTrue(PbProperties.INCLUDEMANAGEDPACKAGES);
 
         // initialize inventory - it will be used in both types of operations
         // (connect to org or run local)
         final HashMap<String, ArrayList<InventoryItem>> inventory = new HashMap<>();
 
-        this.myApiVersion = Double.parseDouble(parameters.getProperty(PackageBuilderCommandLine.APIVERSION_LONGNAME));
-        this.targetDir = Utils.checkPathSlash(Utils.checkPathSlash(parameters.getProperty(PackageBuilderCommandLine.DESTINATION_LONGNAME)));
+        this.myApiVersion = Double.parseDouble(parameters.getProperty(PbProperties.APIVERSION));
+        this.targetDir = Utils.checkPathSlash(Utils.checkPathSlash(parameters.getProperty(PbProperties.DESTINATION)));
         this.metaSourceDownloadDir = Utils.checkPathSlash(
-                Utils.checkPathSlash(parameters.getProperty(PackageBuilderCommandLine.METADATATARGETDIR_LONGNAME)));
+                Utils.checkPathSlash(parameters.getProperty(PbProperties.METADATATARGETDIR)));
         // handling for building a package from a directory
         // if we have a base directory set, ignore everything else and generate
         // from the directory
 
-        if (parameters.getProperty(PackageBuilderCommandLine.BASEDIRECTORY_LONGNAME) != null) {
+        if (parameters.getProperty(PbProperties.BASEDIRECTORY) != null) {
             this.generateInventoryFromDir(inventory);
             this.mode = OperationMode.DIR;
         } else {
@@ -263,7 +233,7 @@ public class PackageBuilder {
             // if we do, put them in the first package, then add all items that
             // add permissions
             boolean exportingPermissions = false;
-            for (String mdType : SPECIALTREATMENTPERMISSIONTYPES) {
+            for (String mdType : PbConstants.SPECIALTREATMENTPERMISSIONTYPES) {
                 if (myCompleteInventory.containsKey(mdType)) {
                     exportingPermissions = true;
                     break;
@@ -272,7 +242,7 @@ public class PackageBuilder {
 
             // if we are exporting permission, check if we're bringing anything that needs to go into the permissions file along
             boolean exportingPermissionsDependentItems = false;
-            for (String mdType : ITEMSTOINCLUDEWITHPROFILESPERMSETS) {
+            for (String mdType : PbConstants.ITEMSTOINCLUDEWITHPROFILESPERMSETS) {
                 if (myCompleteInventory.containsKey(mdType)) {
                     exportingPermissionsDependentItems = true;
                     break;
@@ -291,9 +261,9 @@ public class PackageBuilder {
                         + "Will now try to bundle them and dependent items in one package.");
 
                 // create inventory with all the special treatment items
-                final HashMap<String, ArrayList<InventoryItem>> mySpecialTreatmentInventory = new HashMap<String, ArrayList<InventoryItem>>();
+                final HashMap<String, ArrayList<InventoryItem>> mySpecialTreatmentInventory = new HashMap<>();
 
-                for (final String mdType : ArrayUtils.addAll(SPECIALTREATMENTPERMISSIONTYPES, ITEMSTOINCLUDEWITHPROFILESPERMSETS)) {
+                for (final String mdType : ArrayUtils.addAll(PbConstants.SPECIALTREATMENTPERMISSIONTYPES, PbConstants.ITEMSTOINCLUDEWITHPROFILESPERMSETS)) {
                     if (myCompleteInventory.get(mdType) != null && myCompleteInventory.get(mdType).size() > 0) {
                         mySpecialTreatmentInventory.put(mdType, myCompleteInventory.get(mdType));
                         myCompleteInventory.remove(mdType);
@@ -343,7 +313,7 @@ public class PackageBuilder {
         boolean continuingPreviousFile = false;
 
         HashMap<String, ArrayList<InventoryItem>> currentFile;
-        if (files.size() == 0) {
+        if (files.isEmpty()) {
             currentFile = new HashMap<>();
         } else {
             currentFile = files.get(files.size() - 1);
@@ -364,7 +334,7 @@ public class PackageBuilder {
                 logger.log(Level.FINE, "Type " + mdType + ", won't fit into this file - #items: " + mdTypeSize + ".");
 
                 //put part of this type into this file
-                ArrayList<InventoryItem> mdTypeListPartial = new ArrayList<InventoryItem>(mdTypeList.subList(0, maxItemsInRegularPackage - fileCount));
+                ArrayList<InventoryItem> mdTypeListPartial = new ArrayList<>(mdTypeList.subList(0, maxItemsInRegularPackage - fileCount));
                 currentFile.put(mdType, mdTypeListPartial);
                 mdTypeList.removeAll(mdTypeListPartial);
                 fileCount += mdTypeListPartial.size();
@@ -390,7 +360,7 @@ public class PackageBuilder {
                 // too much even for a single file just with that, 
                 // break up into multiple files
 
-                ArrayList<InventoryItem> mdTypeListPartial = new ArrayList<InventoryItem>(mdTypeList.subList(0, maxItemsInRegularPackage));
+                ArrayList<InventoryItem> mdTypeListPartial = new ArrayList<>(mdTypeList.subList(0, maxItemsInRegularPackage));
                 currentFile.put(mdType, mdTypeListPartial);
                 fileCount += mdTypeListPartial.size();
                 if (!continuingPreviousFile) {
@@ -419,7 +389,6 @@ public class PackageBuilder {
         // finish off any last file
         if (!continuingPreviousFile) {
             files.add(currentFile);
-            continuingPreviousFile = false;
             logger.log(Level.FINE, "Finished composing file " + fileIndex + ", total count: " + fileCount + " items.");
         }
 
@@ -457,9 +426,9 @@ public class PackageBuilder {
         long startTime = this.startTiming();
         //		final MetadataFetchReturnResult fetchResult = new MetadataFetchReturnResult(metadataType);
         final HashMap<String, InventoryItem> packageInventoryList = new HashMap<>();
-        int itemCount = 0;
+        int metadataItemCount = 0;
         try {
-            ArrayList<ListMetadataQuery> queries = new ArrayList<ListMetadataQuery>();
+            ArrayList<ListMetadataQuery> queries = new ArrayList<>();
 
             // check if what we have here is in folders
             final DescribeMetadataObject obj = this.describeMetadataObjectsMap.get(metadataType);
@@ -498,9 +467,9 @@ public class PackageBuilder {
 
                 // generate metadata inventory
                 final FileProperties[] srcMd = this.srcMetadataConnection.listMetadata(queryArray, this.myApiVersion);
-                itemCount += srcMd.length;
+                metadataItemCount += srcMd.length;
 
-                if (itemCount > 0) {
+                if (metadataItemCount > 0) {
                     this.existingTypes.add(metadataType);
                 }
 
@@ -519,7 +488,7 @@ public class PackageBuilder {
                             //
                         }
                     } else {
-                        for (final String s : PackageBuilder.STANDARDVALUETYPESARRAY) {
+                        for (final String s : PbConstants.STANDARDVALUETYPESARRAY) {
                             InventoryItem i = new InventoryItem(s, "standardValueSets");
                             packageInventoryList.put(s, i);
                             logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory.");
@@ -532,7 +501,7 @@ public class PackageBuilder {
 
             } while (queryIterator.hasNext());
 
-        } catch (final Exception e) {
+        } catch (final ConnectionException e) {
             // ce.printStackTrace();
             logger.log(Level.INFO, "\nException processing: " + metadataType);
             logger.log(Level.INFO, "Error: " + e.getMessage());
@@ -600,7 +569,7 @@ public class PackageBuilder {
 
     private void generateInventoryFromDir(final HashMap<String, ArrayList<InventoryItem>> inventory)
             throws IOException {
-        final String basedir = parameters.getProperty(PackageBuilderCommandLine.BASEDIRECTORY_LONGNAME);
+        final String basedir = parameters.getProperty(PbProperties.BASEDIRECTORY);
 
         // check if the directory is valid
         final HashMap<String, HashSet<InventoryItem>> myInventory = new HashMap<>();
@@ -667,7 +636,7 @@ public class PackageBuilder {
                 if (typeInventory == null) {
                     typeInventory = new HashSet<>();
                     myInventory.put(mdType, typeInventory);
-                    System.out.println("Created inventory record for type: " + mdType);
+                    logger.log(Level.INFO, "Created inventory record for type: " + mdType);
                 }
 
                 // check if there is a folder in the filename and it's aura -
@@ -690,19 +659,17 @@ public class PackageBuilder {
                 logger.log(Level.FINE, "Added: " + mdType + " : " + filename + ", to inventory, original path: " + s);
 
                 // convert myinventory to the right return type
-            } catch (final Exception e) {
+            } catch (final IOException e) {
                 // Something bad happened
-                System.out.println("Something bad happened on file: " + s + ", skipping...");
+                logger.log(Level.INFO, "Something bad happened on file: " + s + ", skipping...");
             }
 
         }
-        for (final String myMdType : myInventory.keySet()) {
+        myInventory.keySet().forEach(myMdType -> {
             final ArrayList<InventoryItem> invType = new ArrayList<>();
             invType.addAll(myInventory.get(myMdType));
             inventory.put(myMdType, invType);
-        }
-
-        //
+        }); //
     }
 
     /*
@@ -716,12 +683,13 @@ public class PackageBuilder {
             throws RemoteException, Exception {
 
         // Initialize the metadata connection we're going to need
-        this.srcUrl = parameters.getProperty(PackageBuilderCommandLine.SERVERURL_LONGNAME) + PackageBuilder.URLBASE + this.myApiVersion;
-        this.srcUser = parameters.getProperty(PackageBuilderCommandLine.USERNAME_LONGNAME);
-        this.srcPwd = parameters.getProperty(PackageBuilderCommandLine.PASSWORD_LONGNAME);
-        this.skipItems = parameters.getProperty(PackageBuilderCommandLine.SKIPPATTERNS_LONGNAME);
+        this.srcUrl = parameters.getProperty(PbProperties.SERVERURL) + PbProperties.URLBASE + this.myApiVersion;
+        this.srcUser = parameters.getProperty(PbProperties.USERNAME);
+        this.srcPwd = parameters.getProperty(PbProperties.PASSWORD);
+        this.srcToken = parameters.getProperty(PbProperties.TOKEN);
+        this.skipItems = parameters.getProperty(PbProperties.SKIPPATTERNS);
         // Make a login call to source
-        this.srcMetadataConnection = LoginUtil.mdLogin(this.srcUrl, this.srcUser, this.srcPwd, logger);
+        this.srcMetadataConnection = LoginUtil.mdLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
 
         // Figure out what we are going to be fetching
         final ArrayList<String> workToDo = new ArrayList<>(this.getTypesToFetch());
@@ -764,7 +732,7 @@ public class PackageBuilder {
             final HashMap<String, ArrayList<InventoryItem>> inventory)
             throws Exception {
 
-        int itemCount = 0;
+        int pkgItemCount = 0;
         int skipCount = 0;
 
         final HashMap<String, ArrayList<InventoryItem>> myFile = new HashMap<>();
@@ -786,15 +754,15 @@ public class PackageBuilder {
             Collections.sort(items, (o1, o2) -> o1.getItemName().compareTo(o2.getItemName()));
             for (final InventoryItem item : items) {
                 myFile.get(mdType).add(item);
-                itemCount++;
+                pkgItemCount++;
             }
         }
 
         // if we're writing change telemetry into the package.xml, or skipping/including by email, need to get
         // user emails now
         if (includeChangeData
-                || this.parameters.containsKey(PackageBuilderCommandLine.SKIPEMAIL_LONGNAME)
-                || this.parameters.containsKey(PackageBuilderCommandLine.INCLUDEEMAIL_LONGNAME)) {
+                || this.parameters.containsKey(PbProperties.SKIPEMAIL)
+                || this.parameters.containsKey(PbProperties.INCLUDEEMAIL)) {
             this.populateUserEmails(myFile);
         }
 
@@ -804,15 +772,15 @@ public class PackageBuilder {
         // now break it up into files if needed
         final HashMap<String, HashMap<String, ArrayList<InventoryItem>>> files = this.createPackageFiles(myFile);
 
-        writeAndDownloadPackages(files, myFile);
+        writeAndDownloadPackages(files);
 
         if (downloadData) {
 
-            if (this.parameters.containsKey(PackageBuilderCommandLine.STRIPUSERPERMISSIONS_LONGNAME)
+            if (this.parameters.containsKey(PbProperties.STRIPPROFILEUSERPERMISSIONS)
                     && myFile.containsKey("Profile")) {
                 logger.log(Level.INFO, "Asked to strip user permissions from Profiles - will do so now.");
                 ProfileCompare pc = new ProfileCompare(thisLogLevel);
-                pc.stripUserPermissionsFromProfiles(parameters.getProperty(PackageBuilderCommandLine.METADATATARGETDIR_LONGNAME));
+                pc.stripUserPermissionsFromProfiles(parameters.getProperty(PbProperties.METADATATARGETDIR));
 
             }
         }
@@ -822,8 +790,8 @@ public class PackageBuilder {
 
         logger.log(Level.INFO, "Types found in org: " + typesFound.toString());
 
-        logger.log(Level.INFO, "Total items in package.xml: " + (itemCount - skipCount));
-        logger.log(Level.FINE, "Total items overall: " + itemCount + ", items skipped: " + skipCount
+        logger.log(Level.INFO, "Total items in package.xml: " + (pkgItemCount - skipCount));
+        logger.log(Level.INFO, "Total items overall: " + pkgItemCount + ", items skipped: " + skipCount
                 + " (excludes count of items in type where entire type was skipped)");
 
         return files;
@@ -838,30 +806,28 @@ public class PackageBuilder {
     private HashMap<String, InventoryItem> generateTotalInventory(HashMap<String, ArrayList<InventoryItem>> inventory) {
         HashMap<String, InventoryItem> totalInventory = new HashMap<>();
 
-        for (String metadataType : inventory.keySet()) {
-            for (InventoryItem item : inventory.get(metadataType)) {
+        inventory.keySet().forEach(metadataType -> {
+            inventory.get(metadataType).stream().map(item -> {
                 String key = item.getFileName();
-
                 // strip suffix from file name
                 int idx = key.lastIndexOf(".");
-
                 if (idx > 0) {
                     key = key.substring(0, idx);
                 }
-
                 totalInventory.put(key, item);
+                return key;
+            }).forEachOrdered(key -> {
                 logger.log(Level.FINE, "Added: " + key + " to git inventory");
-            }
-        }
+            });
+        });
 
         return totalInventory;
     }
 
-    private void writeAndDownloadPackages(HashMap<String, HashMap<String, ArrayList<InventoryItem>>> files,
-            HashMap<String, ArrayList<InventoryItem>> completeInventory) throws Exception {
+    private void writeAndDownloadPackages(HashMap<String, HashMap<String, ArrayList<InventoryItem>>> files) throws Exception {
         // USE THREADS TO speed things up
         // final int totalFiles = files.size();
-        final ExecutorService WORKER_THREAD_POOL = Executors.newFixedThreadPool(PackageBuilder.CONCURRENT_THREADS);
+        final ExecutorService WORKER_THREAD_POOL = Executors.newFixedThreadPool(PbConstants.CONCURRENT_THREADS);
 
         final Collection<PackageAndFilePersister> allPersisters = new ArrayList<>();
 
@@ -870,7 +836,7 @@ public class PackageBuilder {
             final PackageAndFilePersister pfp = new PackageAndFilePersister(this.myApiVersion,
                     this.targetDir,
                     this.metaSourceDownloadDir,
-                    parameters.getProperty(PackageBuilderCommandLine.DESTINATION_LONGNAME),
+                    parameters.getProperty(PbProperties.DESTINATION),
                     members, curFileName,
                     this.includeChangeData,
                     this.downloadData,
@@ -886,8 +852,8 @@ public class PackageBuilder {
         // if doing git commit, clean out the target directory before starting (unless requested not to)
         // but first check that someplace above it actually has the GIT stuff in it
         if (gitCommit) {
-            File targetDirectory = new File(parameters.getProperty(PackageBuilderCommandLine.DESTINATION_LONGNAME) + File.separator + this.metaSourceDownloadDir);
-            if (!isParamTrue(PackageBuilderCommandLine.RETAINTARGETDIR_LONGNAME)) {
+            File targetDirectory = new File(parameters.getProperty(PbProperties.DESTINATION) + File.separator + this.metaSourceDownloadDir);
+            if (!isParamTrue(PbProperties.RETAINTARGETDIR)) {
                 FileUtils.deleteDirectory(targetDirectory);
             }
         }
@@ -924,7 +890,7 @@ public class PackageBuilder {
     private HashSet<String> getTypesToFetch() throws ConnectionException {
 
         final HashSet<String> typesToFetch = new HashSet<>();
-        final String mdTypesToExamine = parameters.getProperty(PackageBuilderCommandLine.METADATAITEMS_LONGNAME);
+        final String mdTypesToExamine = parameters.getProperty(PbProperties.METADATAITEMS);
 
         // get a describe
         final DescribeMetadataResult dmr = this.srcMetadataConnection.describeMetadata(this.myApiVersion);
@@ -943,17 +909,17 @@ public class PackageBuilder {
             // no directions on what to fetch - go get everything
             logger.log(Level.INFO, "No metadataitems (-mi) parameter found, will inventory the whole org");
 
-            for (final String obj : this.describeMetadataObjectsMap.keySet()) {
+            this.describeMetadataObjectsMap.keySet().forEach(obj -> {
                 typesToFetch.add(obj.trim());
-            }
+            });
 
             // now add the list of types to be added manually
-            for (String manualType : ADDITIONALTYPESTOADD) {
+            for (String manualType : PbConstants.ADDITIONALTYPESTOADD) {
                 typesToFetch.add(manualType.trim());
             }
 
             // check API version - in 45+, remove FlowDefinition
-            if (Double.valueOf(parameters.getProperty(PackageBuilderCommandLine.APIVERSION_LONGNAME)) >= 45) {
+            if (Double.valueOf(parameters.getProperty(PbProperties.APIVERSION)) >= 45) {
                 typesToFetch.remove("FlowDefinition");
             }
 
@@ -971,8 +937,8 @@ public class PackageBuilder {
 
         int skipCount = 0;
         int lastSkipCount = 0;
-        int lastItemCount = 0;
-        int itemCount = 0;
+        int lastUnskippedItemCount = 0;
+        int unskippedItemCount = 0;
 
         SimpleDateFormat format1 = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -986,17 +952,17 @@ public class PackageBuilder {
         ArrayList<Pattern> forceIncludePatterns_r;
 
 //Default Patterns
-        ArrayList<Pattern> skipPatterns_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.SKIPPATTERNS_LONGNAME));
-        ArrayList<Pattern> skipEmail_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.SKIPEMAIL_LONGNAME));
-        ArrayList<Pattern> includePatterns_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.INCLUDEPATTERNS_LONGNAME));
-        ArrayList<Pattern> includeEmail_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.INCLUDEEMAIL_LONGNAME));
-        ArrayList<Pattern> skipUsername_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.SKIPUSERNAME_LONGNAME));
-        ArrayList<Pattern> includeUsername_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.INCLUDEUSERNAME_LONGNAME));
-        ArrayList<Pattern> forceIncludePatterns_d = initializePatternArray(parameters.getProperty(PackageBuilderCommandLine.FORCEINCLUDEUSERNAME_LONGNAME));
+        ArrayList<Pattern> skipPatterns_d = initializePatternArray(parameters.getProperty(PbProperties.SKIPPATTERNS));
+        ArrayList<Pattern> skipEmail_d = initializePatternArray(parameters.getProperty(PbProperties.SKIPEMAIL));
+        ArrayList<Pattern> includePatterns_d = initializePatternArray(parameters.getProperty(PbProperties.INCLUDEPATTERNS));
+        ArrayList<Pattern> includeEmail_d = initializePatternArray(parameters.getProperty(PbProperties.INCLUDEEMAIL));
+        ArrayList<Pattern> skipUsername_d = initializePatternArray(parameters.getProperty(PbProperties.SKIPUSERNAME));
+        ArrayList<Pattern> includeUsername_d = initializePatternArray(parameters.getProperty(PbProperties.INCLUDEUSERNAME));
+        ArrayList<Pattern> forceIncludePatterns_d = initializePatternArray(parameters.getProperty(PbProperties.FORCEINCLUDEPATTERNS));
 
         // initialize date ranges, if any
-        String fromDateString = parameters.getProperty(PackageBuilderCommandLine.FROMDATE_LONGNAME);
-        String toDateString = parameters.getProperty(PackageBuilderCommandLine.TODATE_LONGNAME);
+        String fromDateString = parameters.getProperty(PbProperties.FROMDATE);
+        String toDateString = parameters.getProperty(PbProperties.TODATE);
         Date fromDate = null;
         Date toDate = null;
         boolean skipManageableStateInstalled = false;
@@ -1019,19 +985,19 @@ public class PackageBuilder {
         SortedSet<String> sortedSet = new TreeSet<String>(myFile.keySet());
         for (final String mdType : sortedSet) { //Loop through Metadata Types a-z
             lastSkipCount = skipCount;
-            lastItemCount = itemCount;
+            lastUnskippedItemCount = unskippedItemCount;
             logger.log(Level.INFO, "Skip pattern check for " + mdType);
 
-            skipManageableStateInstalled = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.SKIPMANAGEABLESTATEINSTALLED) ? true : false;
+            skipManageableStateInstalled = parameters.containsKey(mdType + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) ? true : false;
 
             //Setup patterns for metadata types:
-            skipPatterns_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.SKIPPATTERNS_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.SKIPPATTERNS_LONGNAME)) : skipPatterns_d;
-            skipEmail_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.SKIPEMAIL_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.SKIPEMAIL_LONGNAME)) : skipEmail_d;
-            includePatterns_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.INCLUDEPATTERNS_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.INCLUDEPATTERNS_LONGNAME)) : includePatterns_d;
-            includeEmail_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.INCLUDEEMAIL_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.INCLUDEEMAIL_LONGNAME)) : includeEmail_d;
-            skipUsername_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.SKIPUSERNAME_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.SKIPUSERNAME_LONGNAME)) : skipUsername_d;
-            includeUsername_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.INCLUDEUSERNAME_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.INCLUDEUSERNAME_LONGNAME)) : includeUsername_d;
-            forceIncludePatterns_r = parameters.containsKey(mdType + "." + PackageBuilderCommandLine.FORCEINCLUDEUSERNAME_LONGNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PackageBuilderCommandLine.FORCEINCLUDEUSERNAME_LONGNAME)) : includeUsername_d;
+            skipPatterns_r = parameters.containsKey(mdType + "." + PbProperties.SKIPPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.SKIPPATTERNS)) : skipPatterns_d;
+            skipEmail_r = parameters.containsKey(mdType + "." + PbProperties.SKIPEMAIL) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.SKIPEMAIL)) : skipEmail_d;
+            includePatterns_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDEPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.INCLUDEPATTERNS)) : includePatterns_d;
+            includeEmail_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDEEMAIL) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.INCLUDEEMAIL)) : includeEmail_d;
+            skipUsername_r = parameters.containsKey(mdType + "." + PbProperties.SKIPUSERNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.SKIPUSERNAME)) : skipUsername_d;
+            includeUsername_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDEUSERNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.INCLUDEUSERNAME)) : includeUsername_d;
+            forceIncludePatterns_r = parameters.containsKey(mdType + "." + PbProperties.FORCEINCLUDEPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.FORCEINCLUDEPATTERNS)) : includeUsername_d;
 
             boolean ignoreNullDate = false;
             final ArrayList<InventoryItem> items = myFile.get(mdType);
@@ -1174,25 +1140,24 @@ public class PackageBuilder {
                 if (itemSkipped) {
                     i.remove();
                 } else {
-                    itemCount++;
+                    unskippedItemCount++;
                 }
 
             }
-            logger.log(Level.INFO, "Summary (included/total) " + mdType + ": " + (itemCount - lastItemCount) + "/" + ((skipCount - lastSkipCount) + (itemCount - lastItemCount)));
+            logger.log(Level.INFO, "Summary (included/total) " + mdType + ": " + (unskippedItemCount - lastUnskippedItemCount) + "/" + ((skipCount - lastSkipCount) + (unskippedItemCount - lastUnskippedItemCount)));
         }
 
         return skipCount;
     }
 
     private ArrayList<Pattern> initializePatternArray(String parameter) {
-        ArrayList<Pattern> retVal = new ArrayList<Pattern>();
+        ArrayList<Pattern> retVal = new ArrayList<>();
         if (parameter != null) {
             for (final String p : parameter.split(",")) {
                 try {
                     retVal.add(Pattern.compile(p));
                 } catch (final PatternSyntaxException e) {
-                    System.out.println("Tried to compile pattern: " + p + " but got exception: ");
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "Tried to compile pattern: " + p + " but got exception: ", e);
                 }
             }
         }
@@ -1220,7 +1185,7 @@ public class PackageBuilder {
         final HashMap<String, HashMap<String, String>> usersBySalesforceID = new HashMap<>();
 
         // login
-        this.srcPartnerConnection = LoginUtil.soapLogin(this.srcUrl, this.srcUser, this.srcPwd, logger);
+        this.srcPartnerConnection = LoginUtil.soapLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
 
         // build the query
         final String queryStart = "SELECT Id, Name, Username, Email FROM User WHERE ID IN(";
@@ -1255,7 +1220,7 @@ public class PackageBuilder {
                 }
             }
         } else {
-            System.out.println("No records found.");
+            logger.log(Level.INFO, "No records found.");
         }
 
         // now run through the InventoryItems again and update user data
