@@ -1,9 +1,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.kgal</groupId>
-	<artifactId>PackageBuilder</artifactId>
-	<version>3.0.0.0</version>
+	<groupId>com.mayaforce.packagebuilder</groupId>
+	<artifactId>packagebuilder</artifactId>
+	<version>3.0.0.0d</version>
 	<name>Salesforce Package Builder</name>
 	<description>Generate package.xml files for Salesforce - API 53 enabled</description>
 
@@ -14,9 +14,9 @@
 		<sfdc.version>53.0.0</sfdc.version>
 		<commons.cli.version>1.5.0</commons.cli.version>
 		<commons.lang3.version>3.8.1</commons.lang3.version>
-		<commons.io.version>2.6</commons.io.version>
+		<commons.io.version>2.7</commons.io.version>
 		<jgit.version>5.1.3.201810200350-r</jgit.version>
-		<guava.version>24.1.1-jre</guava.version>
+		<guava.version>31.0.1-jre</guava.version>
 	</properties>
 
 	<licenses>
@@ -149,5 +149,12 @@
 		</dependency>
 
 	</dependencies>
-	<url>https://github.com/kgalant/PackageBuilder</url>
+	<url>https://github.com/mayaforce/PackageBuilder</url>
+	  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub Packages</name>
+      <url>https://maven.pkg.github.com/mayaforce/PackageBuilder</url>
+    </repository>
+  </distributionManagement>
 </project>
