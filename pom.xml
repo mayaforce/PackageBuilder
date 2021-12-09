@@ -2,8 +2,8 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mayaforce.packagebuilder</groupId>
-	<artifactId>PackageBuilder</artifactId>
-	<version>3.0.0.0a</version>
+	<artifactId>packagebuilder</artifactId>
+	<version>3.0.0.0d</version>
 	<name>Salesforce Package Builder</name>
 	<description>Generate package.xml files for Salesforce - API 53 enabled</description>
 
