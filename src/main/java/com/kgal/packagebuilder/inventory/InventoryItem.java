@@ -67,7 +67,7 @@ public class InventoryItem {
 
     public String getExtendedName() {
         if (fp == null) {
-            return itemName;
+            return getItemName();
         } else {
             return fp.getType() + ":" + fp.getFullName();
         }
@@ -86,7 +86,7 @@ public class InventoryItem {
     }
 
     public String getFileName() {
-        return fp == null ? folderName + '/' + itemName : fp.getFileName();
+        return fp == null ? folderName + '/' + getItemName() : fp.getFileName();
     }
 
     public String getFullName() {
@@ -115,7 +115,7 @@ public class InventoryItem {
 
     public String toCSV() {
         return getType() + ","
-                + itemName + ","
+                + getItemName() + ","
                 + itemVersion + ","
                 + getLastModifiedDate() + ","
                 + getLastModifiedByName() + ","
