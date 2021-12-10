@@ -18,7 +18,7 @@
  * under the License. * *
  * ========================================================================== *
  */
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 /**
  * Result of the persistence operation for a Zip file downloaded from the

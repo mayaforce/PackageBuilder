@@ -1,4 +1,4 @@
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,8 +21,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.kgal.migrationtoolutils.Utils;
-import com.kgal.packagebuilder.profilecompare.TagComparer;
+import com.mayaforce.migrationtoolutils.Utils;
+import com.mayaforce.packagebuilder.profilecompare.TagComparer;
 
 public class ProfileCompare {
 

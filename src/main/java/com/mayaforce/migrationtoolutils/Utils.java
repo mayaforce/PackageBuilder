@@ -1,4 +1,4 @@
-package com.kgal.migrationtoolutils;
+package com.mayaforce.migrationtoolutils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

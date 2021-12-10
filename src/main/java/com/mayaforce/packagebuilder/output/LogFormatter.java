@@ -19,7 +19,7 @@
  *                                                                            *
  * ========================================================================== *
  */
-package com.kgal.packagebuilder.output;
+package com.mayaforce.packagebuilder.output;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;

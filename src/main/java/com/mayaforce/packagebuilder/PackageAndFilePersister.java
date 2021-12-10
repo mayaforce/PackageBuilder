@@ -18,7 +18,7 @@
  * under the License. * *
  * ========================================================================== *
  */
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,9 +47,9 @@ import org.w3c.dom.Comment;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import com.kgal.packagebuilder.PersistResult.Status;
-import com.kgal.packagebuilder.inventory.InventoryItem;
-import com.kgal.migrationtoolutils.Utils;
+import com.mayaforce.packagebuilder.PersistResult.Status;
+import com.mayaforce.packagebuilder.inventory.InventoryItem;
+import com.mayaforce.migrationtoolutils.Utils;
 import com.sforce.soap.metadata.MetadataConnection;
 
 /**

@@ -1,4 +1,4 @@
-package com.kgal.packagebuilder.inventory;
+package com.mayaforce.packagebuilder.inventory;
 
 import java.util.ArrayList;
 import java.util.HashMap;

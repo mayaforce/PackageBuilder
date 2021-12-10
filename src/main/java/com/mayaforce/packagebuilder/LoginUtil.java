@@ -1,4 +1,4 @@
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 import java.util.Properties;
 import java.util.logging.Level;

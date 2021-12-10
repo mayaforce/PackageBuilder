@@ -18,7 +18,7 @@
  * under the License. * *
  * ========================================================================== *
  */
-package com.kgal.packagebuilder.output;
+package com.mayaforce.packagebuilder.output;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,10 +38,10 @@ import org.eclipse.jgit.api.errors.NoFilepatternException;
 import org.eclipse.jgit.errors.NoWorkTreeException;
 import org.eclipse.jgit.lib.PersonIdent;
 
-import com.kgal.packagebuilder.PackageBuilder;
-import com.kgal.packagebuilder.PbProperties;
-import com.kgal.packagebuilder.inventory.GitInventoryItem;
-import com.kgal.packagebuilder.inventory.InventoryItem;
+import com.mayaforce.packagebuilder.PackageBuilder;
+import com.mayaforce.packagebuilder.PbProperties;
+import com.mayaforce.packagebuilder.inventory.GitInventoryItem;
+import com.mayaforce.packagebuilder.inventory.InventoryItem;
 import java.util.Properties;
 
 /**

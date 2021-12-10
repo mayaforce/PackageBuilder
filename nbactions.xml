@@ -13,7 +13,7 @@
                 <exec.vmArgs></exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.appArgs>-b properties\packagebuilder.stage4.properties -cproperties\connection.properties</exec.appArgs>
-                <exec.mainClass>com.kgal.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
+                <exec.mainClass>com.mayaforce.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
                 <exec.executable>java</exec.executable>
                 <exec.workingdir>D:\GitHub\PackageBuilder\PackageBuilder</exec.workingdir>
             </properties>
@@ -31,7 +31,7 @@
                 <exec.vmArgs>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.appArgs>-b properties\packagebuilder.stage4.properties -cproperties\connection.properties</exec.appArgs>
-                <exec.mainClass>com.kgal.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
+                <exec.mainClass>com.mayaforce.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
                 <exec.workingdir>D:\GitHub\PackageBuilder\PackageBuilder</exec.workingdir>
@@ -49,7 +49,7 @@
             <properties>
                 <exec.vmArgs></exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.mainClass>com.kgal.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
+                <exec.mainClass>com.mayaforce.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
                 <exec.executable>java</exec.executable>
                 <exec.appArgs>-b properties\packagebuilder.stage4.properties -cproperties\connection.properties</exec.appArgs>
                 <exec.workingdir>D:\GitHub\PackageBuilder\PackageBuilder</exec.workingdir>

@@ -1,4 +1,4 @@
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 import java.io.*;
 import java.util.*;
@@ -10,7 +10,7 @@ import javax.xml.parsers.*;
 import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 
-import com.kgal.packagebuilder.inventory.InventoryItem;
+import com.mayaforce.packagebuilder.inventory.InventoryItem;
 import com.sforce.soap.metadata.*;
 
 /**

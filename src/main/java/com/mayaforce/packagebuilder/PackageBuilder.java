@@ -1,9 +1,9 @@
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
-import com.kgal.migrationtoolutils.Utils;
-import com.kgal.packagebuilder.inventory.InventoryItem;
-import com.kgal.packagebuilder.output.GitOutputManager;
-import com.kgal.packagebuilder.output.LogFormatter;
+import com.mayaforce.migrationtoolutils.Utils;
+import com.mayaforce.packagebuilder.inventory.InventoryItem;
+import com.mayaforce.packagebuilder.output.GitOutputManager;
+import com.mayaforce.packagebuilder.output.LogFormatter;
 import com.sforce.soap.metadata.DescribeMetadataObject;
 import com.sforce.soap.metadata.DescribeMetadataResult;
 import com.sforce.soap.metadata.FileProperties;

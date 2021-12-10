@@ -1,4 +1,4 @@
-package com.kgal.packagebuilder.inventory;
+package com.mayaforce.packagebuilder.inventory;
 
 import java.util.Comparator;
 

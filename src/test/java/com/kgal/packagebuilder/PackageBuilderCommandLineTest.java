@@ -21,14 +21,15 @@
  */
 package com.kgal.packagebuilder;
 
-import com.kgal.migrationtoolutils.Utils;
+import com.mayaforce.packagebuilder.PbProperties;
+import com.mayaforce.migrationtoolutils.Utils;
 import static org.junit.Assert.*;
 
 import java.util.Map;
 
 import org.junit.Test;
 
-import com.kgal.packagebuilder.PackageBuilderCommandLine;
+import com.mayaforce.packagebuilder.PackageBuilderCommandLine;
 import java.io.FileNotFoundException;
 import java.util.Properties;
 import java.util.logging.Level;

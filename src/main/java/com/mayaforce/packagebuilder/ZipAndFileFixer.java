@@ -18,7 +18,7 @@
  * under the License. * *
  * ========================================================================== *
  */
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +31,7 @@ import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 
-import com.kgal.packagebuilder.inventory.InventoryItem;
+import com.mayaforce.packagebuilder.inventory.InventoryItem;
 
 /**
  * Extracts a given zip file to a target and adjusts the file date to value

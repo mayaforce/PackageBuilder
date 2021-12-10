@@ -16,7 +16,7 @@
  * under the License. * *
  * ========================================================================== *
  */
-package com.kgal.packagebuilder;
+package com.mayaforce.packagebuilder;
 
 import java.io.File;
 import java.io.FileReader;
@@ -245,25 +245,10 @@ public class PackageBuilderCommandLine {
     }
 
     private static void displayVersionNumber() throws IOException, XmlPullParserException {
-        if (VERSIONNUMBER.equals("")) {
-            MavenXpp3Reader reader = new MavenXpp3Reader();
-            Model model;
-            if ((new File("pom.xml")).exists()) {
-                model = reader.read(new FileReader("pom.xml"));
-            } else {
-                model = reader.read(
-                        new InputStreamReader(
-                                PackageBuilderCommandLine.class.getResourceAsStream(
-                                        "/META-INF/maven/com.kgal/PackageBuilder/pom.xml"
-                                )
-                        )
-                );
-            }
-            VERSIONNUMBER = model.getArtifactId() + " " + model.getVersion();
-        }
-
-        System.out.println(VERSIONNUMBER);
-
+        Package ver = PackageBuilderCommandLine.class.getPackage();
+        
+        System.out.println("Title:   " + ver.getImplementationTitle() + "\nVersion: " + ver.getImplementationVersion());
+ 
     }
 
 }
