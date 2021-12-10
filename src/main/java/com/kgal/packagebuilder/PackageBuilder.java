@@ -7,9 +7,12 @@ import com.kgal.packagebuilder.output.LogFormatter;
 import com.sforce.soap.metadata.DescribeMetadataObject;
 import com.sforce.soap.metadata.DescribeMetadataResult;
 import com.sforce.soap.metadata.FileProperties;
+import com.sforce.soap.metadata.Flow;
 import com.sforce.soap.metadata.ListMetadataQuery;
 import com.sforce.soap.metadata.ManageableState;
+import com.sforce.soap.metadata.Metadata;
 import com.sforce.soap.metadata.MetadataConnection;
+import com.sforce.soap.metadata.RetrieveRequest;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.soap.partner.QueryResult;
 import com.sforce.soap.partner.sobject.SObject;
@@ -480,6 +483,18 @@ public class PackageBuilder {
                             if ((includeNamespacedItems || n.getNamespacePrefix() == null) || n.getNamespacePrefix().equals("") || (metadataType.equals("InstalledPackage") && includeManagedPackagesOnly)) {
                                 // packageMap.add(n.getFullName());
                                 InventoryItem i = new InventoryItem(n.getFullName(), n, this.describeMetadataObjectsMap.get(metadataType));
+                                
+                                if (metadataType.equals("Flow")) {
+
+                                    Metadata[] mdt = srcMetadataConnection.readMetadata(metadataType, new String[] {n.getFullName()}).getRecords();
+                                    if (mdt.length ==1) {
+                                        Flow flow = (Flow) mdt[0];
+                                        i.setStatus( flow.getStatus() == null ? "Managed" : flow.getStatus().toString() );
+                                        logger.log(Level.FINEST, "Flow " + n.getFullName() + " status: " + i.getStatus());
+                                    }
+                                }
+                               
+                                
                                 packageInventoryList.put(n.getFullName(), i);
                                 logger.log(Level.FINE, "Adding item " + i.getExtendedName() + " to inventory.");
                             } else {
@@ -966,6 +981,7 @@ public class PackageBuilder {
         Date fromDate = null;
         Date toDate = null;
         boolean skipManageableStateInstalled = false;
+        boolean limitToActive = false;
 
         if (fromDateString != null && fromDateString.length() >= 8) {
             try {
@@ -989,6 +1005,7 @@ public class PackageBuilder {
             logger.log(Level.INFO, "Skip pattern check for " + mdType);
 
             skipManageableStateInstalled = parameters.containsKey(mdType + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) ? true : false;
+            limitToActive = parameters.containsKey(mdType + "." + PbProperties.LIMITTOACTIVE) ? true : false;
 
             //Setup patterns for metadata types:
             skipPatterns_r = parameters.containsKey(mdType + "." + PbProperties.SKIPPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.SKIPPATTERNS)) : skipPatterns_d;
@@ -1010,6 +1027,8 @@ public class PackageBuilder {
                 boolean itemSkipped = false;
                 boolean forceInclude = false;
                 logger.log(Level.FINEST, "Skip pattern check on: " + mdItem.getFullName() + " || " + mdItem.getExtendedName());
+                
+                
 
                 for (Pattern p : forceIncludePatterns_r) {
                     final Matcher m = p.matcher(metadataObjectName);
@@ -1132,8 +1151,14 @@ public class PackageBuilder {
                     if (mdItem.getFileProperties() != null && skipManageableStateInstalled) {
                         if (mdItem.getFileProperties().getManageableState() == null || mdItem.getFileProperties().getManageableState().equals(ManageableState.installed)) {
                             itemSkipped = true;
-                            logger.log(Level.INFO, "Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
+                            logger.log(Level.FINE, "Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
                         }
+                    }
+                    
+                    //Check for active (Flows) 
+                    if (limitToActive && !mdItem.getStatus().equals("Active")) {
+                        itemSkipped = true;
+                        logger.log(Level.FINE, "Skip non-active or managed metadata: " + metadataObjectName + ", item will be skipped.");
                     }
 
                 } //End forceInclude check

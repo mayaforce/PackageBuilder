@@ -55,5 +55,6 @@ public class PbProperties {
     public static final String INCLUDECHANGEDATA = "includechangedata";
     public static final String LOCALONLY = "localonly";
     public static final String SKIPMANAGEABLESTATEINSTALLED = "skipmanagedstateinstalled"; //Only used in MetadataType.skipmanagedstateinstalled setups.
+    public static final String LIMITTOACTIVE = "limittoactive"; // Limits objects (mainly Flows) to only active flows. 
     
 }

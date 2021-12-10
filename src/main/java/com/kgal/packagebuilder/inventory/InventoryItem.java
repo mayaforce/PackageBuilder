@@ -19,6 +19,7 @@ public class InventoryItem {
     public String localFileName;
     public DescribeMetadataObject describe;
     public String folderName;
+    private String status = "Active";
 
     public DescribeMetadataObject getDescribeMetadataObject() {
         return describe;
@@ -111,6 +112,14 @@ public class InventoryItem {
 
     public String getType() {
         return fp == null ? null : fp.getType();
+    }
+    
+    public String getStatus() {
+        return status;
+    }
+    
+    public void setStatus(String newStatus){
+        status = newStatus;
     }
 
     public String toCSV() {
