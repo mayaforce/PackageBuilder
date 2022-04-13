@@ -478,7 +478,7 @@ public class PackageBuilder {
 
                 if (((srcMd != null) && (srcMd.length > 0)) || metadataType.equals("StandardValueSet")) {
                     // hack alert - currently (API 45) listMetadata returns nothing for StandardValueSet
-                    if (!metadataType.equals("StandardValueSet")) {
+                    if (true) { //(!metadataType.equals("StandardValueSet")) {
                         for (final FileProperties n : srcMd) {
                             if ((includeNamespacedItems || n.getNamespacePrefix() == null) || n.getNamespacePrefix().equals("") || (metadataType.equals("InstalledPackage") && includeManagedPackagesOnly)) {
                                 // packageMap.add(n.getFullName());

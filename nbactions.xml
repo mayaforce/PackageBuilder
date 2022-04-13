@@ -55,4 +55,19 @@
                 <exec.workingdir>D:\GitHub\PackageBuilder\PackageBuilder</exec.workingdir>
             </properties>
         </action>
+        <action>
+            <actionName>CUSTOM-update POM to latest releases of plugins.</actionName>
+            <displayName>update POM to latest releases of plugins.</displayName>
+            <recursive>false</recursive>
+            <goals>
+                <goal>versions:use-latest-releases</goal>
+            </goals>
+        </action>
+        <action>
+            <actionName>CUSTOM-Full Build (mvn install)</actionName>
+            <displayName>Full Build (mvn install)</displayName>
+            <goals>
+                <goal>install</goal>
+            </goals>
+        </action>
     </actions>

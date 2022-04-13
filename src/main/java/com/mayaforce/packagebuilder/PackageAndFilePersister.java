@@ -240,6 +240,7 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
                 member.setTextContent(item.getItemName());
 
                 if (this.includeChangeData) {
+                    member.setAttribute("createddate", format1.format(item.getCreatedDate()== null ? 0 : item.getCreatedDate().getTime()));
                     member.setAttribute("lastmodifiedby", item.getLastModifiedByName());
                     member.setAttribute("lastmodified", format1.format(item.getLastModifiedDate() == null ? 0 : item.getLastModifiedDate().getTime()));
                     member.setAttribute("lastmodifiedemail", item.lastModifiedByEmail);
