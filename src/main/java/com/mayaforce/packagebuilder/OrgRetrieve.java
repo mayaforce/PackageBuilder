@@ -99,7 +99,7 @@ public class OrgRetrieve {
 
         for (final String mdType : inventoryToRetrieve.keySet()) {
             for (final InventoryItem i : inventoryToRetrieve.get(mdType)) {
-                filenames.add(i.getFileName());
+                filenames.add(i.getFolderAndFileName());
             }
         }
 

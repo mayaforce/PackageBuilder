@@ -12,7 +12,6 @@ import com.sforce.soap.metadata.ListMetadataQuery;
 import com.sforce.soap.metadata.ManageableState;
 import com.sforce.soap.metadata.Metadata;
 import com.sforce.soap.metadata.MetadataConnection;
-import com.sforce.soap.metadata.RetrieveRequest;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.soap.partner.QueryResult;
 import com.sforce.soap.partner.sobject.SObject;
@@ -74,6 +73,8 @@ public class PackageBuilder {
     private double myApiVersion;
     private String skipItems;
     private HashMap<String, DescribeMetadataObject> describeMetadataObjectsMap;
+
+    private HashMap<String, String> folderRecursivePath = new HashMap<>(); //String1: Metadata Type|Folder Name String2: Full path
     String authEndPoint = "";
     private MetadataConnection srcMetadataConnection;
     private String srcUrl;
@@ -420,7 +421,6 @@ public class PackageBuilder {
         logger.log(Level.FINE, message + " Duration: " + hms);
     }
 
-
     /*
 	 * returns a Hashmap of InventoryItems, keyed by item.getFullName
      */
@@ -437,7 +437,7 @@ public class PackageBuilder {
             final DescribeMetadataObject obj = this.describeMetadataObjectsMap.get(metadataType);
             if ((obj != null) && (obj.getInFolder() == true)) {
                 ArrayList<FileProperties> foldersToProcess = new ArrayList<>();
-                foldersToProcess = generateFolderListToProcess(packageInventoryList, metadataType);
+                foldersToProcess = generateFolderListToProcess(packageInventoryList, obj);
                 final Iterator<FileProperties> folder = foldersToProcess.iterator();
 
                 // generate queries array
@@ -478,25 +478,38 @@ public class PackageBuilder {
 
                 if (((srcMd != null) && (srcMd.length > 0)) || metadataType.equals("StandardValueSet")) {
                     // hack alert - currently (API 45) listMetadata returns nothing for StandardValueSet
-                    if (true) { //(!metadataType.equals("StandardValueSet")) {
+                    if (!metadataType.equals("StandardValueSet")) { //List setup in PbConstants.java
                         for (final FileProperties n : srcMd) {
+
                             if ((includeNamespacedItems || n.getNamespacePrefix() == null) || n.getNamespacePrefix().equals("") || (metadataType.equals("InstalledPackage") && includeManagedPackagesOnly)) {
                                 // packageMap.add(n.getFullName());
                                 InventoryItem i = new InventoryItem(n.getFullName(), n, this.describeMetadataObjectsMap.get(metadataType));
-                                
-                                if (metadataType.equals("Flow")) {
 
-                                    Metadata[] mdt = srcMetadataConnection.readMetadata(metadataType, new String[] {n.getFullName()}).getRecords();
-                                    if (mdt.length ==1) {
-                                        Flow flow = (Flow) mdt[0];
-                                        i.setStatus( flow.getStatus() == null ? "Managed" : flow.getStatus().toString() );
-                                        logger.log(Level.FINEST, "Flow " + n.getFullName() + " status: " + i.getStatus());
-                                    }
+                                if (metadataType.equals("Flow")) {
+                                    //if (0 == i.getFileProperties().getManageableState().compareTo(ManageableState.unmanaged)) {
+                                        Metadata[] mdt = srcMetadataConnection.readMetadata(metadataType, new String[]{n.getFullName()}).getRecords();
+                                        if (mdt.length == 1) {
+
+                                            Flow flow = (Flow) mdt[0];
+                                            i.setStatus(flow.getStatus() == null ? "Managed" : flow.getStatus().toString());
+                                            logger.log(Level.FINE, "Flow " + n.getFullName() + " status: " + i.getStatus());
+                                        }
+                                    //}
                                 }
-                               
-                                
+
+                                if (obj != null && obj.getInFolder()) {
+                                    logger.log(Level.FINE, "Folder Detected " + obj.getXmlName() + " filename: " + i.getFileProperties().getFullName());
+                                    int indexOfFwdSlash = i.getFileProperties().getFullName().indexOf("/");
+                                    String directory = i.getFileProperties().getFullName().substring(0, indexOfFwdSlash);
+                                    String newDirectory = folderRecursivePath.get(obj.getDirectoryName() + '/' + directory);
+
+                                    String newFilename = newDirectory + i.getFileProperties().getFullName().substring(indexOfFwdSlash);
+                                    i.setfullNameAndDirOverride(newFilename);
+
+                                }
+
                                 packageInventoryList.put(n.getFullName(), i);
-                                logger.log(Level.FINE, "Adding item " + i.getExtendedName() + " to inventory.");
+                                logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
                             } else {
                                 logger.log(Level.FINE, "skipping item " + n.getNamespacePrefix() + " from " + n.getFullName() + " inventory.");
                             }
@@ -506,7 +519,7 @@ public class PackageBuilder {
                         for (final String s : PbConstants.STANDARDVALUETYPESARRAY) {
                             InventoryItem i = new InventoryItem(s, "standardValueSets");
                             packageInventoryList.put(s, i);
-                            logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory.");
+                            logger.log(Level.FINER, "Adding item extendedName: " + i.getExtendedName() + " to inventory. FullName: " + i.getFullName());
                         }
                     }
 
@@ -526,21 +539,78 @@ public class PackageBuilder {
         return packageInventoryList;
     }
 
+    private String getFullFolderPath(DescribeMetadataObject metadataType, String lookupKey, String folderId, int level) {
+
+        final String soqlQry = "select Id, ParentId, DeveloperName, AccessType, IsReadonly, Type, NamespacePrefix from Folder WHERE Id IN (%s)";
+        QueryResult qResult;
+
+        try {
+            qResult = this.srcPartnerConnection.query(String.format(soqlQry, "'" + folderId + "'"));
+            if (qResult.getSize() == 1) {
+
+                final SObject[] records = qResult.getRecords();
+                SObject o = records[0];
+                String parentId = (String) o.getField("ParentId");
+                String developerName = (String) o.getField("DeveloperName");
+                logger.log(Level.FINER, String.format("getFullFolderPath metadataType: %s || folderId: %s || parentId %s || developerName: %s", metadataType.getXmlName(), folderId, parentId, developerName));
+
+                if (parentId == null && folderRecursivePath.containsKey(lookupKey)) {
+                    logger.log(Level.FINER, "key found: " + lookupKey);
+                    return folderRecursivePath.get(lookupKey);
+                } else {
+                    String fullPath = developerName;
+                    if (parentId != null && parentId.length() > 0) {
+                        // Folder has a parent, need to go to the parent to get the full path (recursive)
+                        logger.log(Level.FINER, "Parent found. Recursive call. fullPath: " + fullPath + " parentId: " + parentId);
+                        String parentPath = getFullFolderPath(metadataType, lookupKey, parentId, level + 1);
+                        fullPath = parentPath + '/' + developerName;
+
+                    }
+
+                    if (level == 1) {
+                        logger.log(Level.FINER, "Adding " + lookupKey + " with value: " + fullPath);
+                        folderRecursivePath.put(lookupKey, fullPath);
+                    }
+
+                    return fullPath;
+                }
+            } else {
+
+                folderRecursivePath.put(lookupKey, "unfiled$public");
+                return "unfiled$public";
+            }
+
+            // run the query
+        } catch (ConnectionException ex) {
+            Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, null, ex);
+            return "RecordLookupError";
+
+        }
+
+    }
     // inventory is a list of lists
     // keys are the metadata types
     // e.g. flow, customobject, etc.
-    private ArrayList<FileProperties> generateFolderListToProcess(HashMap<String, InventoryItem> packageInventoryList, String metadataType)
+
+    private ArrayList<FileProperties> generateFolderListToProcess(HashMap<String, InventoryItem> packageInventoryList, DescribeMetadataObject metadataType)
             throws ConnectionException {
-        logger.log(Level.FINE, metadataType + " is stored in folders. Getting folder list.");
+        logger.log(Level.FINE, metadataType.getXmlName() + " is stored in folders. Getting folder list.");
         final ArrayList<FileProperties> foldersToProcess = new ArrayList<>();
         final ListMetadataQuery query = new ListMetadataQuery();
         // stupid hack for emailtemplate folder name
         String type;
-        if (metadataType.toLowerCase().equals("emailtemplate")) {
+        if (metadataType.getXmlName().toLowerCase().equals("emailtemplate")) {
             type = "EmailFolder";
         } else {
-            type = metadataType + "Folder";
+            type = metadataType.getXmlName() + "Folder";
         }
+
+        //Setup patterns for metadata types:
+        ArrayList<Pattern> skipPatterns_r;
+        ArrayList<Pattern> includePatterns_r;
+        //Setup patterns for metadata types:
+        skipPatterns_r = initializePatternArray(parameters.getProperty(type + "." + PbProperties.SKIPPATTERNS));
+        includePatterns_r = initializePatternArray(parameters.getProperty(type + "." + PbProperties.INCLUDEPATTERNS));
 
         query.setType(type);
         final FileProperties[] srcMd = this.srcMetadataConnection.listMetadata(
@@ -553,9 +623,42 @@ public class PackageBuilder {
                 if (n.getManageableState().name().equals("installed")) {
                     logger.log(Level.FINER, "Skipping folder " + n.getFullName() + " because it is managed.");
                 } else {
-                    foldersToProcess.add(n);
-                    packageInventoryList.put(n.getFullName(), new InventoryItem(n.getFullName(), n, true, this.describeMetadataObjectsMap.get(metadataType)));
-                    logger.log(Level.FINER, "Adding folder " + n.getFullName() + " to inventory.");
+//                    String tempArray[] = { n.getFullName()};
+//                    ReadResult rr =  this.srcMetadataConnection.readMetadata(type, tempArray);
+                    boolean itemSkipped = false;
+                    for (Pattern p : skipPatterns_r) {
+                        final Matcher m = p.matcher(n.getFullName());
+                        if (m.matches()) {
+                            logger.log(Level.FINEST, "Skip pattern: " + p.pattern() + " matches the metadata item: " + n.getFullName() + ", item will be skipped.");
+                            itemSkipped = true;
+                            break;
+                        }
+                    }
+
+                    if (!itemSkipped && includePatterns_r.size() > 0) {
+                        boolean matchesPattern = false;
+                        for (Pattern p : includePatterns_r) {
+                            final Matcher m = p.matcher(n.getFullName());
+                            if (m.matches()) {
+                                matchesPattern = true;
+                                break;
+                            }
+                        }
+                        if (!matchesPattern) {
+                            logger.log(Level.FINEST, "Metadata item: " + type + " does not match any item name include patterns, item will be skipped.");
+                            itemSkipped = true;
+                        }
+                    }
+                    if (!itemSkipped) {
+                        foldersToProcess.add(n);
+
+                        String lookupKey = metadataType.getDirectoryName() + '/' + n.getFullName();
+                        String fullPath = getFullFolderPath(metadataType, lookupKey, n.getId(), 1);
+
+                        packageInventoryList.put(n.getFullName(), new InventoryItem(n.getFullName(), n, metadataType, true, fullPath));
+
+                        logger.log(Level.FINER, "Adding folder " + n.getFullName() + " to inventory. Path: " + n.getFileName() + " fullPath " + fullPath);
+                    }
                 }
 
                 itemCount++;
@@ -704,6 +807,8 @@ public class PackageBuilder {
         this.srcToken = parameters.getProperty(PbProperties.TOKEN);
         this.skipItems = parameters.getProperty(PbProperties.SKIPPATTERNS);
         // Make a login call to source
+        this.srcPartnerConnection = LoginUtil.soapLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
+
         this.srcMetadataConnection = LoginUtil.mdLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
 
         // Figure out what we are going to be fetching
@@ -823,7 +928,7 @@ public class PackageBuilder {
 
         inventory.keySet().forEach(metadataType -> {
             inventory.get(metadataType).stream().map(item -> {
-                String key = item.getFileName();
+                String key = item.getFolderAndFileName();
                 // strip suffix from file name
                 int idx = key.lastIndexOf(".");
                 if (idx > 0) {
@@ -1026,9 +1131,7 @@ public class PackageBuilder {
                 ignoreNullDate = false;
                 boolean itemSkipped = false;
                 boolean forceInclude = false;
-                logger.log(Level.FINEST, "Skip pattern check on: " + mdItem.getFullName() + " || " + mdItem.getExtendedName());
-                
-                
+                logger.log(Level.FINE, "Skip pattern check on: " + mdItem.getFullName() + " || " + mdItem.getExtendedName());
 
                 for (Pattern p : forceIncludePatterns_r) {
                     final Matcher m = p.matcher(metadataObjectName);
@@ -1043,7 +1146,7 @@ public class PackageBuilder {
                     for (Pattern p : skipPatterns_r) {
                         final Matcher m = p.matcher(metadataObjectName);
                         if (m.matches()) {
-                            logger.log(Level.FINE, "Skip pattern: " + p.pattern() + " matches the metadata item: " + metadataObjectName + ", item will be skipped.");
+                            logger.log(Level.FINEST, "Skip pattern: " + p.pattern() + " matches the metadata item: " + metadataObjectName + ", item will be skipped.");
                             skipCount++;
                             itemSkipped = true;
                             break;
@@ -1060,7 +1163,7 @@ public class PackageBuilder {
                             }
                         }
                         if (!matchesPattern) {
-                            logger.log(Level.FINE, "Metadata item: " + metadataObjectName + " does not match any item name include patterns, item will be skipped.");
+                            logger.log(Level.FINEST, "Metadata item: " + metadataObjectName + " does not match any item name include patterns, item will be skipped.");
                             skipCount++;
                             itemSkipped = true;
                         }
@@ -1069,7 +1172,7 @@ public class PackageBuilder {
                         for (Pattern p : skipUsername_r) {
                             final Matcher m = p.matcher(mdItem.getLastModifiedByName());
                             if (m.matches()) {
-                                logger.log(Level.FINE, "Skip pattern: " + p.pattern() + " matches the metadata item: " + mdItem.getExtendedName()
+                                logger.log(Level.FINEST, "Skip pattern: " + p.pattern() + " matches the metadata item: " + mdItem.getExtendedName()
                                         + " (" + mdItem.getLastModifiedByName() + "), item will be skipped.");
                                 skipCount++;
                                 itemSkipped = true;
@@ -1154,7 +1257,7 @@ public class PackageBuilder {
                             logger.log(Level.FINE, "Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
                         }
                     }
-                    
+
                     //Check for active (Flows) 
                     if (limitToActive && !mdItem.getStatus().equals("Active")) {
                         itemSkipped = true;
@@ -1208,9 +1311,6 @@ public class PackageBuilder {
 
         // now call salesforce to get the emails and usernames
         final HashMap<String, HashMap<String, String>> usersBySalesforceID = new HashMap<>();
-
-        // login
-        this.srcPartnerConnection = LoginUtil.soapLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
 
         // build the query
         final String queryStart = "SELECT Id, Name, Username, Email FROM User WHERE ID IN(";

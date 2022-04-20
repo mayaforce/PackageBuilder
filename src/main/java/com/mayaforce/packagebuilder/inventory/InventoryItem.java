@@ -19,25 +19,14 @@ public class InventoryItem {
     public String localFileName;
     public DescribeMetadataObject describe;
     public String folderName;
+    public String folderPath;
     private String status = "Active";
+    private boolean inFolder = false;
 
-    public DescribeMetadataObject getDescribeMetadataObject() {
-        return describe;
-    }
+    public InventoryItem(String i, FileProperties f, DescribeMetadataObject d, boolean isF, String fullNameAndDirOverride) {
 
-    public FileProperties getFileProperties() {
-        return fp;
-    }
-
-    public String getItemName() {
-        //Managed Package Layouts need to be renamed to include the namespace prefix before the layout name. 
-        if (fp != null && fp.getType().equals("Layout") && fp.getNamespacePrefix() != null) {
-            return itemName.replaceFirst("\\-", "-" + fp.getNamespacePrefix() + "__");
-        }
-        return itemName;
-    }
-
-    public InventoryItem(String i, FileProperties f, boolean isF, DescribeMetadataObject d) {
+        this.fullNameAndDirOverride = fullNameAndDirOverride;
+        
         initItem(i, f, d);
         this.isFolder = isF;
     }
@@ -45,17 +34,7 @@ public class InventoryItem {
     public InventoryItem(String i, FileProperties f, DescribeMetadataObject d) {
         initItem(i, f, d);
         this.isFolder = false;
-    }
-
-    private void initItem(String i, FileProperties f, DescribeMetadataObject d) {
-        this.itemName = i;
-        this.fp = f;
-        if (fp != null && d != null) {
-            folderName = d.getDirectoryName();
-        } else {
-            folderName = "";
-        }
-        this.describe = d;
+        
     }
 
     // for StandardValueSets only
@@ -64,6 +43,26 @@ public class InventoryItem {
         this.isFolder = false;
         this.folderName = folderName;
         this.describe = null;
+    }
+
+    public DescribeMetadataObject getDescribeMetadataObject() {
+        return describe;
+    }
+
+    private void initItem(String i, FileProperties f, DescribeMetadataObject d) {
+        this.itemName = i;
+        this.fp = f;
+
+        if (fp != null && d != null) {
+            folderName = d.getDirectoryName();
+        } else {
+            folderName = "";
+        }
+        this.describe = d;
+    }
+
+    public FileProperties getFileProperties() {
+        return fp;
     }
 
     public String getExtendedName() {
@@ -86,11 +85,28 @@ public class InventoryItem {
         return fp == null ? null : fp.getCreatedByName();
     }
 
-    public String getFileName() {
-        return fp == null ? folderName + '/' + getItemName() : fp.getFileName();
+    public String getItemName() {
+        //Managed Package Layouts need to be renamed to include the namespace prefix before the layout name. 
+        if (this.fullNameAndDirOverride != null) {
+            return fullNameAndDirOverride;
+        }
+        if (fp != null && fp.getType().equals("Layout") && fp.getNamespacePrefix() != null) {
+            return itemName.replaceFirst("\\-", "-" + fp.getNamespacePrefix() + "__");
+        }
+        return itemName;
+    }
+
+    public String getFolderAndFileName() {
+
+
+            return fp == null ? folderName + '/' + getItemName() : fp.getFileName();
+ 
     }
 
     public String getFullName() {
+        if (this.fullNameAndDirOverride != null) {
+            return fullNameAndDirOverride;
+        }
         return fp == null ? null : fp.getFullName();
     }
 
@@ -113,12 +129,12 @@ public class InventoryItem {
     public String getType() {
         return fp == null ? null : fp.getType();
     }
-    
+
     public String getStatus() {
         return status;
     }
-    
-    public void setStatus(String newStatus){
+
+    public void setStatus(String newStatus) {
         status = newStatus;
     }
 
@@ -132,5 +148,11 @@ public class InventoryItem {
                 + getCreatedByName() + ","
                 + fp == null ? null : fp.getId() + ",";
 
+    }
+
+    String fullNameAndDirOverride; 
+    public void setfullNameAndDirOverride(String fullNameAndDirOverride) {
+        this.fullNameAndDirOverride = fullNameAndDirOverride;
+        
     }
 }
