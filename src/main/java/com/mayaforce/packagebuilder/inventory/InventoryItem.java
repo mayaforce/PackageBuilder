@@ -7,21 +7,239 @@ import com.sforce.soap.metadata.FileProperties;
 
 public class InventoryItem {
 
+    /**
+     * @param itemName the itemName to set
+     */
+    public void setItemName(String itemName) {
+        this.itemName = itemName;
+    }
+
+    /**
+     * @return the itemExtendedName
+     */
+    public String getItemExtendedName() {
+        return itemExtendedName;
+    }
+
+    /**
+     * @param itemExtendedName the itemExtendedName to set
+     */
+    public void setItemExtendedName(String itemExtendedName) {
+        this.itemExtendedName = itemExtendedName;
+    }
+
+    /**
+     * @return the fp
+     */
+    public FileProperties getFp() {
+        return fp;
+    }
+
+    /**
+     * @param fp the fp to set
+     */
+    public void setFp(FileProperties fp) {
+        this.fp = fp;
+    }
+
+    /**
+     * @return the isFolder
+     */
+    public boolean isIsFolder() {
+        return isFolder;
+    }
+
+    /**
+     * @param isFolder the isFolder to set
+     */
+    public void setIsFolder(boolean isFolder) {
+        this.isFolder = isFolder;
+    }
+
+    /**
+     * @return the itemVersion
+     */
+    public int getItemVersion() {
+        return itemVersion;
+    }
+
+    /**
+     * @param itemVersion the itemVersion to set
+     */
+    public void setItemVersion(int itemVersion) {
+        this.itemVersion = itemVersion;
+    }
+
+    /**
+     * @return the isNew
+     */
+    public boolean isIsNew() {
+        return isNew;
+    }
+
+    /**
+     * @param isNew the isNew to set
+     */
+    public void setIsNew(boolean isNew) {
+        this.isNew = isNew;
+    }
+
+    /**
+     * @return the isUpdated
+     */
+    public boolean isIsUpdated() {
+        return isUpdated;
+    }
+
+    /**
+     * @param isUpdated the isUpdated to set
+     */
+    public void setIsUpdated(boolean isUpdated) {
+        this.isUpdated = isUpdated;
+    }
+
+    /**
+     * @return the lastModifiedByEmail
+     */
+    public String getLastModifiedByEmail() {
+        return lastModifiedByEmail;
+    }
+
+    /**
+     * @param lastModifiedByEmail the lastModifiedByEmail to set
+     */
+    public void setLastModifiedByEmail(String lastModifiedByEmail) {
+        this.lastModifiedByEmail = lastModifiedByEmail;
+    }
+
+    /**
+     * @return the lastModifiedByUsername
+     */
+    public String getLastModifiedByUsername() {
+        return lastModifiedByUsername;
+    }
+
+    /**
+     * @param lastModifiedByUsername the lastModifiedByUsername to set
+     */
+    public void setLastModifiedByUsername(String lastModifiedByUsername) {
+        this.lastModifiedByUsername = lastModifiedByUsername;
+    }
+
+    /**
+     * @return the localFileName
+     */
+    public String getLocalFileName() {
+        return localFileName;
+    }
+
+    /**
+     * @param localFileName the localFileName to set
+     */
+    public void setLocalFileName(String localFileName) {
+        this.localFileName = localFileName;
+    }
+
+    /**
+     * @return the describe
+     */
+    public DescribeMetadataObject getDescribe() {
+        return describe;
+    }
+
+    /**
+     * @param describe the describe to set
+     */
+    public void setDescribe(DescribeMetadataObject describe) {
+        this.describe = describe;
+    }
+
+    /**
+     * @return the folderName
+     */
+    public String getFolderName() {
+        return folderName;
+    }
+
+    /**
+     * @param folderName the folderName to set
+     */
+    public void setFolderName(String folderName) {
+        this.folderName = folderName;
+    }
+
+    /**
+     * @return the folderPath
+     */
+    public String getFolderPath() {
+        return folderPath;
+    }
+
+    /**
+     * @param folderPath the folderPath to set
+     */
+    public void setFolderPath(String folderPath) {
+        this.folderPath = folderPath;
+    }
+
+    /**
+     * @return the inFolder
+     */
+    public boolean isInFolder() {
+        return inFolder;
+    }
+
+    /**
+     * @param inFolder the inFolder to set
+     */
+    public void setInFolder(boolean inFolder) {
+        this.inFolder = inFolder;
+    }
+
+    /**
+     * @return the typeOverride
+     */
+    public String getTypeOverride() {
+        return typeOverride;
+    }
+
+    /**
+     * @param typeOverride the typeOverride to set
+     */
+    public void setTypeOverride(String typeOverride) {
+        this.typeOverride = typeOverride;
+    }
+
+    /**
+     * @return the fullNameAndDirOverride
+     */
+    public String getFullNameAndDirOverride() {
+        return fullNameAndDirOverride;
+    }
+
+    /**
+     * @param fullNameAndDirOverride the fullNameAndDirOverride to set
+     */
+    public void setFullNameAndDirOverride(String fullNameAndDirOverride) {
+        this.fullNameAndDirOverride = fullNameAndDirOverride;
+    }
+
     private String itemName;
-    public String itemExtendedName;
-    public FileProperties fp;
-    public boolean isFolder;
-    public int itemVersion;
-    public boolean isNew;
-    public boolean isUpdated;
-    public String lastModifiedByEmail;
-    public String lastModifiedByUsername;
-    public String localFileName;
-    public DescribeMetadataObject describe;
-    public String folderName;
-    public String folderPath;
+    private String itemExtendedName;
+    private FileProperties fp;
+    private boolean isFolder;
+    private int itemVersion;
+    private boolean isNew;
+    private boolean isUpdated;
+    private String lastModifiedByEmail;
+    private String lastModifiedByUsername;
+    private String localFileName;
+    private DescribeMetadataObject describe;
+    private String folderName;
+    private String folderPath;
     private String status = "Active";
     private boolean inFolder = false;
+    private String typeOverride;
 
     public InventoryItem(String i, FileProperties f, DescribeMetadataObject d, boolean isF, String fullNameAndDirOverride) {
 
@@ -38,60 +256,61 @@ public class InventoryItem {
     }
 
     // for StandardValueSets only
-    public InventoryItem(String i, String folderName) {
+    public InventoryItem(String i, String folderName, String type) {
         this.itemName = i;
         this.isFolder = false;
         this.folderName = folderName;
         this.describe = null;
+        this.typeOverride = type;
     }
 
     public DescribeMetadataObject getDescribeMetadataObject() {
-        return describe;
+        return getDescribe();
     }
 
     private void initItem(String i, FileProperties f, DescribeMetadataObject d) {
-        this.itemName = i;
-        this.fp = f;
+        this.setItemName(i);
+        this.setFp(f);
 
-        if (fp != null && d != null) {
-            folderName = d.getDirectoryName();
+        if (getFp() != null && d != null) {
+            setFolderName(d.getDirectoryName());
         } else {
-            folderName = "";
+            setFolderName("");
         }
-        this.describe = d;
+        this.setDescribe(d);
     }
 
     public FileProperties getFileProperties() {
-        return fp;
+        return getFp();
     }
 
     public String getExtendedName() {
-        if (fp == null) {
+        if (getFp() == null) {
             return getItemName();
         } else {
-            return fp.getType() + ":" + fp.getFullName();
+            return getFp().getType() + ":" + getFp().getFullName();
         }
     }
 
     public String getId() {
-        return fp == null ? null : fp.getId();
+        return getFp() == null ? null : getFp().getId();
     }
 
     public String getCreatedById() {
-        return fp == null ? null : fp.getCreatedById();
+        return getFp() == null ? null : getFp().getCreatedById();
     }
 
     public String getCreatedByName() {
-        return fp == null ? null : fp.getCreatedByName();
+        return getFp() == null ? null : getFp().getCreatedByName();
     }
 
     public String getItemName() {
         //Managed Package Layouts need to be renamed to include the namespace prefix before the layout name. 
-        if (this.fullNameAndDirOverride != null) {
-            return fullNameAndDirOverride;
+        if (this.getFullNameAndDirOverride() != null) {
+            return getFullNameAndDirOverride();
         }
-        if (fp != null && fp.getType().equals("Layout") && fp.getNamespacePrefix() != null) {
-            return itemName.replaceFirst("\\-", "-" + fp.getNamespacePrefix() + "__");
+        if (getFp() != null && getFp().getType().equals("Layout") && getFp().getNamespacePrefix() != null) {
+            return itemName.replaceFirst("\\-", "-" + getFp().getNamespacePrefix() + "__");
         }
         return itemName;
     }
@@ -99,35 +318,38 @@ public class InventoryItem {
     public String getFolderAndFileName() {
 
 
-            return fp == null ? folderName + '/' + getItemName() : fp.getFileName();
+            return getFp() == null ? getFolderName() + '/' + getItemName() : getFp().getFileName();
  
     }
 
     public String getFullName() {
-        if (this.fullNameAndDirOverride != null) {
-            return fullNameAndDirOverride;
+        if (this.getFullNameAndDirOverride() != null) {
+            return getFullNameAndDirOverride();
         }
-        return fp == null ? null : fp.getFullName();
+        return getFp() == null ? null : getFp().getFullName();
     }
 
     public String getLastModifiedById() {
-        return fp == null ? null : fp.getLastModifiedById();
+        return getFp() == null ? null : getFp().getLastModifiedById();
     }
 
     public String getLastModifiedByName() {
-        return fp == null ? null : fp.getLastModifiedByName();
+        return getFp() == null ? null : getFp().getLastModifiedByName();
     }
 
     public Calendar getLastModifiedDate() {
-        return fp == null ? null : fp.getLastModifiedDate();
+        return getFp() == null ? null : getFp().getLastModifiedDate();
     }
 
     public Calendar getCreatedDate() {
-        return fp == null ? null : fp.getCreatedDate();
+        return getFp() == null ? null : getFp().getCreatedDate();
     }
 
     public String getType() {
-        return fp == null ? null : fp.getType();
+        if (getTypeOverride() != null) {
+            return getTypeOverride();
+        }
+        return getFp() == null ? null : getFp().getType();
     }
 
     public String getStatus() {
@@ -141,18 +363,18 @@ public class InventoryItem {
     public String toCSV() {
         return getType() + ","
                 + getItemName() + ","
-                + itemVersion + ","
+                + getItemVersion() + ","
                 + getLastModifiedDate() + ","
                 + getLastModifiedByName() + ","
                 + getCreatedDate() + ","
                 + getCreatedByName() + ","
-                + fp == null ? null : fp.getId() + ",";
+                + getFp() == null ? null : getFp().getId() + ",";
 
     }
 
-    String fullNameAndDirOverride; 
+    private String fullNameAndDirOverride; 
     public void setfullNameAndDirOverride(String fullNameAndDirOverride) {
-        this.fullNameAndDirOverride = fullNameAndDirOverride;
+        this.setFullNameAndDirOverride(fullNameAndDirOverride);
         
     }
 }

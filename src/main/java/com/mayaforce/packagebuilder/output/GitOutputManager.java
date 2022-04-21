@@ -175,9 +175,9 @@ public class GitOutputManager {
             InventoryItem ii = PackageBuilder.getInventoryItemForFile(inventoryLookup, curFile, baseDirectory);
             // TODO: Fix filename to be relative ?
             if (ii != null) {
-                ii.localFileName = localfile;
+                ii.setLocalFileName(localfile);
                 this.addInventoryToUser(itemsByContributor, ii, curFile);
-                logger.log(Level.FINE, "Adding to inventory by user: " + (ii.fp != null ? ii.fp.getFileName() : ii.getFullName()));
+                logger.log(Level.FINE, "Adding to inventory by user: " + (ii.getFp() != null ? ii.getFp().getFileName() : ii.getFullName()));
             } else {
                 logger.log(Level.INFO, "Couldn't map file for adding to GIT: " + curFile.getCanonicalPath());
             }
@@ -195,12 +195,12 @@ public class GitOutputManager {
 
         // generate a unique key for adding to GIT
         // need to handle the fact that some items may be going in that don't have a lastmodifiedby (e.g. standard objects that haven't been touched by a user)
-        String userName = String.valueOf(ii.lastModifiedByUsername) == null
-                || String.valueOf(ii.lastModifiedByUsername).equals("")
-                || String.valueOf(ii.lastModifiedByUsername).equals("null") ? "OOTB" : String.valueOf(ii.lastModifiedByUsername);
-        String userEmail = String.valueOf(ii.lastModifiedByEmail) == null
-                || String.valueOf(ii.lastModifiedByEmail).equals("")
-                || String.valueOf(ii.lastModifiedByEmail).equals("null") ? "standard@salesforce.com" : String.valueOf(ii.lastModifiedByEmail);
+        String userName = String.valueOf(ii.getLastModifiedByUsername()) == null
+                || String.valueOf(ii.getLastModifiedByUsername()).equals("")
+                || String.valueOf(ii.getLastModifiedByUsername()).equals("null") ? "OOTB" : String.valueOf(ii.getLastModifiedByUsername());
+        String userEmail = String.valueOf(ii.getLastModifiedByEmail()) == null
+                || String.valueOf(ii.getLastModifiedByEmail()).equals("")
+                || String.valueOf(ii.getLastModifiedByEmail()).equals("null") ? "standard@salesforce.com" : String.valueOf(ii.getLastModifiedByEmail());
         String userKey = userName + "|" + userEmail;
         GitInventoryItem gii = new GitInventoryItem(ii, file);
         if (itemsByContributor.containsKey(userKey)) {

@@ -21,10 +21,10 @@ package com.mayaforce.packagebuilder;
  */
 public class PbConstants {
 
-    public static final String DEFAULT_API_VERSION = "53.0";
+    public static final String DEFAULT_API_VERSION = "54.0";
     public static final boolean DEFAULT_INCLUDECHANGEDATA = false;
     // Static values that don't change
-    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
+    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
     public static final int DEFAULT_MAXITEMSINPACKAGE = 30000;
     public static final int CONCURRENT_THREADS = 8;
     

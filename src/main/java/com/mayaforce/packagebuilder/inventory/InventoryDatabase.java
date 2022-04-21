@@ -34,16 +34,16 @@ public class InventoryDatabase {
 
         if (latest == null) {
             addItem(theDatabase, metadataType, item);
-            item.isNew = true;
-            item.itemVersion = 1;
+            item.setIsNew(true);
+            item.setItemVersion(1);
             addItem(updatedItems, metadataType, item);
             retval = true;
         } else {
             if (!latest.getLastModifiedDate().equals(item.getLastModifiedDate())) {
                 // the latest one we have is older than the current inventory, add the one in inventory
                 addItem(theDatabase, metadataType, item);
-                item.isUpdated = true;
-                item.itemVersion = latest.itemVersion + 1;
+                item.setIsUpdated(true);
+                item.setItemVersion(latest.getItemVersion() + 1);
                 addItem(updatedItems, metadataType, item);
                 retval = true;
             }

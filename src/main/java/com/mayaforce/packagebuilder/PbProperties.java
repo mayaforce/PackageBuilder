@@ -48,7 +48,6 @@ public class PbProperties {
     public static final String INCLUDEPATTERNS = "includepatterns";
     public static final String METADATATARGETDIR = "metadatatargetdir";
     public static final String TOKEN = "sf.token";
-    public static final String INCLUDEMANAGEDPACKAGES = "includemanagedpackages";
     public static final String BUILDPROPS = "buildprops";
     public static final String DESTINATION = "destination";
     public static final String STRIPPROFILEUSERPERMISSIONS = "stripprofileuserpermissions";
@@ -56,5 +55,5 @@ public class PbProperties {
     public static final String LOCALONLY = "localonly";
     public static final String SKIPMANAGEABLESTATEINSTALLED = "skipmanagedstateinstalled"; //Only used in MetadataType.skipmanagedstateinstalled setups.
     public static final String LIMITTOACTIVE = "limittoactive"; // Limits objects (mainly Flows) to only active flows. 
-    
+    public static final String VERIFYMETADATAREAD = "verifymetadataread"; // forces a read check on every item of metadata found. Not recommended for production use. 
 }
