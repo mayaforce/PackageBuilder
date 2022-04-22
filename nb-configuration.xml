@@ -8,7 +8,10 @@ Without this configuration present, some functionality in the IDE may be limited
 -->
     <config-data xmlns="http://www.netbeans.org/ns/maven-config-data/1">
         <configurations>
+            <configuration id="PackageBuilder - Backup" profiles=""/>
             <configuration id="dev_StandardValueSet" profiles=""/>
+            <configuration id="PackageBuilder - Stage3" profiles=""/>
+            <configuration id="PackageBuilder - Stage4" profiles=""/>
         </configurations>
     </config-data>
 </project-shared-configuration>

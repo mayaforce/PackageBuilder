@@ -53,6 +53,7 @@ public class PbProperties {
     public static final String STRIPPROFILEUSERPERMISSIONS = "stripprofileuserpermissions";
     public static final String INCLUDECHANGEDATA = "includechangedata";
     public static final String LOCALONLY = "localonly";
+    public static final String INCLUDENULLDATE = "includenulldate";
     public static final String SKIPMANAGEABLESTATEINSTALLED = "skipmanagedstateinstalled"; //Only used in MetadataType.skipmanagedstateinstalled setups.
     public static final String LIMITTOACTIVE = "limittoactive"; // Limits objects (mainly Flows) to only active flows. 
     public static final String VERIFYMETADATAREAD = "verifymetadataread"; // forces a read check on every item of metadata found. Not recommended for production use. 

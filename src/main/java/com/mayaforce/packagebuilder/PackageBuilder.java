@@ -91,6 +91,7 @@ public class PackageBuilder {
     private boolean includeChangeData = false;
     private boolean includeNamespacedItems = false;
     private boolean skipManageableStateInstalled = false;
+    private boolean includeNullDate = false;
     private boolean downloadData = false;
     private boolean gitCommit = false;
     private boolean simulateDataDownload = false;
@@ -144,6 +145,7 @@ public class PackageBuilder {
         this.includeNamespacedItems = this.isParamTrue(PbProperties.INCLUDENAMESPACEDITEMS);
         this.verifyMetadataRead = this.isParamTrue(PbProperties.VERIFYMETADATAREAD);
         this.skipManageableStateInstalled = this.isParamTrue(PbProperties.SKIPMANAGEABLESTATEINSTALLED);
+        this.includeNullDate = this.isParamTrue(PbProperties.INCLUDENULLDATE);
 
         // initialize inventory - it will be used in both types of operations
         // (connect to org or run local)
@@ -1101,6 +1103,7 @@ public class PackageBuilder {
         Date fromDate = null;
         Date toDate = null;
         boolean skipManageableStateInstalled_r = false;
+        boolean includeNullDate_r = false;
         boolean limitToActive_r = false;
         boolean verifyMetadataRead_r = false;
 
@@ -1125,6 +1128,7 @@ public class PackageBuilder {
             lastUnskippedItemCount = unskippedItemCount;
 
             skipManageableStateInstalled_r = parameters.containsKey(mdType + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) ? isParamTrue(mdType + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) : this.skipManageableStateInstalled;
+            includeNullDate_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDENULLDATE) ? isParamTrue(mdType + "." + PbProperties.INCLUDENULLDATE) : this.includeNullDate;
             limitToActive_r = parameters.containsKey(mdType + "." + PbProperties.LIMITTOACTIVE) ? isParamTrue(mdType + "." + PbProperties.LIMITTOACTIVE) : false;
             verifyMetadataRead_r = parameters.containsKey(mdType + "." + PbProperties.VERIFYMETADATAREAD) ? isParamTrue(mdType + "." + PbProperties.VERIFYMETADATAREAD) : this.verifyMetadataRead;
 
@@ -1151,9 +1155,11 @@ public class PackageBuilder {
 
             String activeSkipPattern = "\n*\n************************";
             activeSkipPattern += "\n* skipmanagedstateinstalled       " + skipManageableStateInstalled_r;
+            
             if (mdType.equals("Flow")) {
                 activeSkipPattern += "\n* limittoactive                   " + limitToActive_r;
             }
+            activeSkipPattern += "\n* includenulldate                 " + includeNullDate_r;
             activeSkipPattern += "\n* verifymetadataread              " + verifyMetadataRead_r;
             activeSkipPattern += "\n* skippatterns                   {" + skipPatterns_r.size() + "} " + skipPatterns_r;
             activeSkipPattern += "\n* includepatterns                {" + includePatterns_r.size() + "} " + includePatterns_r;
@@ -1165,14 +1171,14 @@ public class PackageBuilder {
             activeSkipPattern += "\n************************";
             logger.log(Level.INFO, "\n***************************\n* Skip check\n* \n* " + mdType + activeSkipPattern);
 
-            boolean ignoreNullDate = false;
+            boolean ignoreNullDate;
             final ArrayList<InventoryItem> items = myFile.get(mdType);
             for (Iterator<InventoryItem> i = items.iterator(); i.hasNext();) {
                 //Setups for Metadata Object:
                 final InventoryItem mdItem = i.next();
                 String metadataObjectName = mdItem.getFullName() == null ? mdItem.getExtendedName() : mdItem.getFullName();
 
-                ignoreNullDate = false;
+                ignoreNullDate = includeNullDate_r;
                 boolean itemSkipped = false;
                 boolean forceInclude = false;
                 logger.log(Level.FINEST, "Skip pattern check on: " + metadataObjectName);
@@ -1275,7 +1281,7 @@ public class PackageBuilder {
                     // check against dates now, if defined
                     Calendar itemLastModified = mdItem.getLastModifiedDate();
                     if (ignoreNullDate && (itemLastModified == null || itemLastModified.getTimeInMillis() == 0)) {
-                        logger.log(Level.FINEST, "Item lacks lastModifiedDate but was included in the includepattern. Overriding and adding. ");
+                        logger.log(Level.FINE, "Item lacks lastModifiedDate but was included in the includepattern. Overriding and adding. ");
                     } else {
                         if (!itemSkipped && fromDate != null) {
 
@@ -1302,7 +1308,7 @@ public class PackageBuilder {
                     if (!itemSkipped && mdItem.getFileProperties() != null && skipManageableStateInstalled_r) {
                         if (mdItem.getFileProperties().getManageableState() == null || mdItem.getFileProperties().getManageableState().equals(ManageableState.installed)) {
                             itemSkipped = true;
-                            logger.log(Level.INFO, "skipmanagedstateinstalled: Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
+                            logger.log(Level.FINE, "skipmanagedstateinstalled: Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
                         }
                     }
                     if (!itemSkipped && verifyMetadataRead_r) {
