@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mayaforce</groupId>
     <artifactId>packagebuilder</artifactId>
-    <version>3.5.SFDCv54.0</version>
+    <version>3.5.SFDCv55.1</version>
     <name>Salesforce Package Builder</name>
     <packaging>jar</packaging>
     <description>Generate package.xml files for Salesforce - API 54 enabled</description>
@@ -93,12 +93,12 @@
         <dependency>
             <groupId>com.force.api</groupId>
             <artifactId>force-metadata-api</artifactId>
-            <version>54.0.0</version>
+            <version>55.1.0</version>
         </dependency>
         <dependency>
             <groupId>com.force.api</groupId>
             <artifactId>force-partner-api</artifactId>
-            <version>54.0.0</version>
+            <version>55.1.0</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -108,7 +108,7 @@
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
-            <version>6.0.0.202111291000-r</version>
+            <version>6.1.0.202203080745-r</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

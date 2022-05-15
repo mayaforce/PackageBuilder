@@ -16,6 +16,5 @@ sampleProperties/sample.properties
 sampleProperties
 profilecompare
 /properties/build.properties
-/properties/packagebuilder.stage2.properties
-/properties/packagebuilder.stage3.properties
+/properties/packagebuilder.sta*
 /properties/connection.properties
