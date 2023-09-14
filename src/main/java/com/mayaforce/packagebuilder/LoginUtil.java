@@ -37,6 +37,7 @@ public class LoginUtil {
 
     /*
      * Creates a MetadataConnection based on a properties object
+    This is used
      */
     public static MetadataConnection mdLogin(final String url, final String user, final String pwd, final String token, Logger logger)
             throws ConnectionException {

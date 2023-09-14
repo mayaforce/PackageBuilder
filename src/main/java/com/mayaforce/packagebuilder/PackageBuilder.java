@@ -8,6 +8,7 @@ import com.sforce.soap.metadata.DescribeMetadataObject;
 import com.sforce.soap.metadata.DescribeMetadataResult;
 import com.sforce.soap.metadata.FileProperties;
 import com.sforce.soap.metadata.Flow;
+import com.sforce.soap.metadata.CustomField;
 import com.sforce.soap.metadata.InstalledPackage;
 import com.sforce.soap.metadata.ListMetadataQuery;
 import com.sforce.soap.metadata.ManageableState;
@@ -1035,8 +1036,13 @@ public class PackageBuilder {
 
         for (final DescribeMetadataObject obj : dmr.getMetadataObjects()) {
             this.describeMetadataObjectsMap.put(obj.getXmlName(), obj);
+            if(obj.getChildXmlNames() != null && obj.getChildXmlNames().length > 0) {
+                for (final String childName : obj.getChildXmlNames())  {
+                    this.describeMetadataObjectsMap.put(childName, obj);
+                }
+            }
         }
-
+        logger.finest(describeMetadataObjectsMap.toString());
         // if a metadataitems parameter was provided, we use that
         if (mdTypesToExamine != null) {
             for (final String s : mdTypesToExamine.split(",")) {
@@ -1048,6 +1054,7 @@ public class PackageBuilder {
 
             this.describeMetadataObjectsMap.keySet().forEach(obj -> {
                 typesToFetch.add(obj.trim());
+                
             });
 
             // now add the list of types to be added manually
@@ -1087,6 +1094,7 @@ public class PackageBuilder {
         ArrayList<Pattern> includeUsername_r;
         ArrayList<Pattern> includePatterns_r;
         ArrayList<Pattern> forceIncludePatterns_r;
+        ArrayList<Pattern> metadataSubTypeIncludePatterns_r;
 
 //Default Patterns
         ArrayList<Pattern> skipPatterns_d = initializePatternArray(parameters.getProperty(PbProperties.SKIPPATTERNS));
@@ -1140,7 +1148,8 @@ public class PackageBuilder {
             skipUsername_r = parameters.containsKey(mdType + "." + PbProperties.SKIPUSERNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.SKIPUSERNAME)) : skipUsername_d;
             includeUsername_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDEUSERNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.INCLUDEUSERNAME)) : includeUsername_d;
             forceIncludePatterns_r = parameters.containsKey(mdType + "." + PbProperties.FORCEINCLUDEPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.FORCEINCLUDEPATTERNS)) : forceIncludePatterns_d;
-
+            metadataSubTypeIncludePatterns_r = parameters.containsKey(mdType + "." + PbProperties.METADATASUBTYPEINCLUDEPATTERN) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.METADATASUBTYPEINCLUDEPATTERN)) : forceIncludePatterns_d;
+                    
             //Type specific overrides
             if (mdType.equals("InstalledPackage")) {
                 logger.log(Level.INFO, "Setting override for " + mdType + " skipmanagedstateinstalled = false");
@@ -1163,6 +1172,7 @@ public class PackageBuilder {
             activeSkipPattern += "\n* verifymetadataread              " + verifyMetadataRead_r;
             activeSkipPattern += "\n* skippatterns                   {" + skipPatterns_r.size() + "} " + skipPatterns_r;
             activeSkipPattern += "\n* includepatterns                {" + includePatterns_r.size() + "} " + includePatterns_r;
+            activeSkipPattern += "\n* metadatasubtypeincludepattern  {" + metadataSubTypeIncludePatterns_r.size() + "} " + metadataSubTypeIncludePatterns_r;
             activeSkipPattern += "\n* forceincludepatterns           {" + forceIncludePatterns_r.size() + "} " + forceIncludePatterns_r;
             activeSkipPattern += "\n* skipemail                      {" + skipEmail_r.size() + "} " + skipEmail_r;
             activeSkipPattern += "\n* includeemail                   {" + includeEmail_r.size() + "} " + includeEmail_r;
@@ -1311,7 +1321,7 @@ public class PackageBuilder {
                             logger.log(Level.FINE, "skipmanagedstateinstalled: Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
                         }
                     }
-                    if (!itemSkipped && verifyMetadataRead_r) {
+                    if (!itemSkipped && (verifyMetadataRead_r || metadataSubTypeIncludePatterns_r.size() > 0)) { //TODO add flag for picklist
                         //Can't do the following check on some types:
                         String type = mdItem.getType();
                         if (!type.matches("(ApexClass|ApexTrigger|xxx)")) {
@@ -1324,6 +1334,10 @@ public class PackageBuilder {
                                         Flow flow = (Flow) mdt[0];
                                         mdItem.setStatus(flow.getStatus() == null ? "Managed" : flow.getStatus().toString());
                                         logger.log(Level.FINE, "Flow " + metadataObjectName + " status: " + mdItem.getStatus());
+                                    } else if (mdItem.getType().equals("CustomField")){
+                                        CustomField cf = (CustomField) mdt[0];
+                                        mdItem.setMetadataSubType(cf.getType() == null ? "Unknown" : cf.getType().toString() );
+                                        logger.log(Level.FINE, "CustomField " + metadataObjectName + " Sub-Type: " + mdItem.getMetadataSubType());
                                     }
 
                                 } else {
@@ -1343,6 +1357,26 @@ public class PackageBuilder {
                     if (limitToActive_r && !mdItem.getStatus().equals("Active")) {
                         itemSkipped = true;
                         logger.log(Level.INFO, "Skip non-active or managed metadata: " + metadataObjectName + ", item will be skipped.");
+                    }
+                    
+                    //Check for Sub Type (CustoField Types)
+                    if (!itemSkipped && metadataSubTypeIncludePatterns_r.size() > 0) {
+                        boolean matchesPattern = false;
+                        String lastModUsername = mdItem.getMetadataSubType()== null ? "null" : mdItem.getMetadataSubType();
+                        for (Pattern p : metadataSubTypeIncludePatterns_r) {
+                            final Matcher m = p.matcher(lastModUsername);
+                            if (m.matches()) {
+                                matchesPattern = true;
+                                logger.log(Level.FINEST, "Metadata Sub Type Filter MATCH: " + metadataObjectName + " (" + mdItem.getMetadataSubType()
+                                    + ") ");
+                            }
+                        }
+                        if (!matchesPattern) {
+                            logger.log(Level.FINE, "Metadata Sub Type Filter (no match): " + metadataObjectName + " (" + mdItem.getMetadataSubType()
+                                    + ") does not match any user name include patterns, item will be skipped.");
+                            skipCount++;
+                            itemSkipped = true;
+                        }
                     }
 
                 } //End forceInclude check

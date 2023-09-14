@@ -241,8 +241,8 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
 
                 if (this.includeChangeData) {
                     member.setAttribute("cd", item.getCreatedDate()== null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") :format1.format(item.getCreatedDate().getTime()));
-                    member.setAttribute("cb", String.format("%-20s", item.getCreatedByName()));
-                    member.setAttribute("mb", String.format("%-20s", item.getLastModifiedByName()));
+                    member.setAttribute("cb", String.format("%-20s", item.getCreatedByName(20)));
+                    member.setAttribute("mb", String.format("%-20s", item.getLastModifiedByName(20)));
                     member.setAttribute("md", item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") :format1.format(item.getLastModifiedDate().getTime()));
                     member.setAttribute("mdt", item.getType());
                 }

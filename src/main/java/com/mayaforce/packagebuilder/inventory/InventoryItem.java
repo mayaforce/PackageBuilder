@@ -8,6 +8,20 @@ import com.sforce.soap.metadata.FileProperties;
 public class InventoryItem {
 
     /**
+     * @return the customFieldType
+     */
+    public String getMetadataSubType() {
+        return metadataSubType;
+    }
+
+    /**
+     * @param metadataSubType the customFieldType to set
+     */
+    public void setMetadataSubType(String metadataSubType) {
+        this.metadataSubType = metadataSubType;
+    }
+
+    /**
      * @param itemName the itemName to set
      */
     public void setItemName(String itemName) {
@@ -240,11 +254,12 @@ public class InventoryItem {
     private String status = "Active";
     private boolean inFolder = false;
     private String typeOverride;
+    private String metadataSubType = "notSet";
 
     public InventoryItem(String i, FileProperties f, DescribeMetadataObject d, boolean isF, String fullNameAndDirOverride) {
-
-        this.fullNameAndDirOverride = fullNameAndDirOverride;
         
+        this.fullNameAndDirOverride = fullNameAndDirOverride;
+
         initItem(i, f, d);
         this.isFolder = isF;
     }
@@ -252,7 +267,7 @@ public class InventoryItem {
     public InventoryItem(String i, FileProperties f, DescribeMetadataObject d) {
         initItem(i, f, d);
         this.isFolder = false;
-        
+
     }
 
     // for StandardValueSets only
@@ -304,6 +319,15 @@ public class InventoryItem {
         return getFp() == null ? null : getFp().getCreatedByName();
     }
 
+    public String getCreatedByName(int charLimit) {
+        String temp = getCreatedByName();
+        if (temp != null && temp.length() > charLimit) {
+            return temp.substring(0, charLimit);
+        }
+        return temp;
+
+    }
+
     public String getItemName() {
         //Managed Package Layouts need to be renamed to include the namespace prefix before the layout name. 
         if (this.getFullNameAndDirOverride() != null) {
@@ -311,15 +335,17 @@ public class InventoryItem {
         }
         if (getFp() != null && getFp().getType().equals("Layout") && getFp().getNamespacePrefix() != null) {
             return itemName.replaceFirst("\\-", "-" + getFp().getNamespacePrefix() + "__");
+        }        
+        if (getFp() != null && getFp().getType().equals("CustomMetadata") && getFp().getNamespacePrefix() != null) {
+            return itemName.replaceFirst("\\.", "." + getFp().getNamespacePrefix() + "__");
         }
         return itemName;
     }
 
     public String getFolderAndFileName() {
 
+        return getFp() == null ? getFolderName() + '/' + getItemName() : getFp().getFileName();
 
-            return getFp() == null ? getFolderName() + '/' + getItemName() : getFp().getFileName();
- 
     }
 
     public String getFullName() {
@@ -335,6 +361,15 @@ public class InventoryItem {
 
     public String getLastModifiedByName() {
         return getFp() == null ? null : getFp().getLastModifiedByName();
+    }
+
+    public String getLastModifiedByName(int charLimit) {
+        String temp = getLastModifiedByName();
+        if (temp != null && temp.length() > charLimit) {
+            return temp.substring(0, charLimit);
+        }
+        return temp;
+
     }
 
     public Calendar getLastModifiedDate() {
@@ -355,6 +390,8 @@ public class InventoryItem {
     public String getStatus() {
         return status;
     }
+    
+   
 
     public void setStatus(String newStatus) {
         status = newStatus;
@@ -372,9 +409,10 @@ public class InventoryItem {
 
     }
 
-    private String fullNameAndDirOverride; 
+    private String fullNameAndDirOverride;
+
     public void setfullNameAndDirOverride(String fullNameAndDirOverride) {
         this.setFullNameAndDirOverride(fullNameAndDirOverride);
-        
+
     }
 }
