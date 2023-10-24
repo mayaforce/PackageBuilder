@@ -452,7 +452,7 @@ public class PackageBuilder {
                     ListMetadataQuery q = new ListMetadataQuery();
                     q.setFolder(folder.next().getFullName());
                     q.setType(metadataType);
-                    
+
                     queries.add(q);
                 }
             } else {
@@ -467,9 +467,9 @@ public class PackageBuilder {
 
             do {
 
-                ListMetadataQuery[] queryArray = new ListMetadataQuery[queries.size()];
+                ListMetadataQuery[] queryArray = new ListMetadataQuery[3];
                 int queriesInArray = 0;
-                while (queryIterator.hasNext() && queriesInArray < queries.size()) {
+                while (queryIterator.hasNext() && queriesInArray < 3) {
                     queryArray[queriesInArray++] = queryIterator.next();
                 }
 
@@ -490,16 +490,16 @@ public class PackageBuilder {
 
                 if (forceIncludeNames_r != null) {
                     String folderName = Character.toLowerCase(metadataType.charAt(0)) + metadataType.substring(1);
-                    if(!folderName.endsWith("s")){
+                    if (!folderName.endsWith("s")) {
                         folderName += "s";
                     }
-                    
+
                     Iterator it = forceIncludeNames_r.iterator();
                     while (it.hasNext()) {
-                        String forceIncludeItem = (String)it.next();
+                        String forceIncludeItem = (String) it.next();
                         InventoryItem i = new InventoryItem(forceIncludeItem, folderName, metadataType);
                         packageInventoryList.put(forceIncludeItem, i);
-                                    logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
+                        logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
                     }
                 }
 
