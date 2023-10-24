@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 
 public class PackageBuilder {
 
@@ -451,6 +452,7 @@ public class PackageBuilder {
                     ListMetadataQuery q = new ListMetadataQuery();
                     q.setFolder(folder.next().getFullName());
                     q.setType(metadataType);
+                    
                     queries.add(q);
                 }
             } else {
@@ -464,13 +466,10 @@ public class PackageBuilder {
             Iterator<ListMetadataQuery> queryIterator = queries.iterator();
 
             do {
-                final ListMetadataQuery query = new ListMetadataQuery();
 
-                query.setType(metadataType);
-
-                ListMetadataQuery[] queryArray = new ListMetadataQuery[3];
+                ListMetadataQuery[] queryArray = new ListMetadataQuery[queries.size()];
                 int queriesInArray = 0;
-                while (queryIterator.hasNext() && queriesInArray < 3) {
+                while (queryIterator.hasNext() && queriesInArray < queries.size()) {
                     queryArray[queriesInArray++] = queryIterator.next();
                 }
 
@@ -478,8 +477,30 @@ public class PackageBuilder {
                 final FileProperties[] srcMd = this.srcMetadataConnection.listMetadata(queryArray, this.myApiVersion);
                 metadataItemCount += srcMd.length;
 
-                if (metadataItemCount > 0) {
+                ArrayList<String> forceIncludeNames_r = null;
+                //Setup patterns for metadata types:
+
+                if (parameters.containsKey(metadataType + "." + PbProperties.FORCEINCLUDENAMES)) {
+                    forceIncludeNames_r = initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDENAMES));
+                }
+
+                if (metadataItemCount > 0 || forceIncludeNames_r != null || metadataType.equals("StandardValueSet")) {
                     this.existingTypes.add(metadataType);
+                }
+
+                if (forceIncludeNames_r != null) {
+                    String folderName = Character.toLowerCase(metadataType.charAt(0)) + metadataType.substring(1);
+                    if(!folderName.endsWith("s")){
+                        folderName += "s";
+                    }
+                    
+                    Iterator it = forceIncludeNames_r.iterator();
+                    while (it.hasNext()) {
+                        String forceIncludeItem = (String)it.next();
+                        InventoryItem i = new InventoryItem(forceIncludeItem, folderName, metadataType);
+                        packageInventoryList.put(forceIncludeItem, i);
+                                    logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
+                    }
                 }
 
                 if (((srcMd != null) && (srcMd.length > 0)) || metadataType.equals("StandardValueSet")) {
@@ -512,6 +533,7 @@ public class PackageBuilder {
                             //
                         }
                     } else {
+
                         for (final String s : PbConstants.STANDARDVALUETYPESARRAY) {
                             InventoryItem i = new InventoryItem(s, "standardValueSets", metadataType);
                             packageInventoryList.put(s, i);
@@ -609,6 +631,7 @@ public class PackageBuilder {
         ArrayList<Pattern> skipPatterns_r;
         ArrayList<Pattern> includePatterns_r;
         ArrayList<Pattern> forceIncludePatterns_r;
+
         //Setup patterns for metadata types:
         skipPatterns_r = parameters.containsKey(type + "." + PbProperties.SKIPPATTERNS) ? initializePatternArray(parameters.getProperty(type + "." + PbProperties.SKIPPATTERNS)) : skipPatterns_d;
         includePatterns_r = parameters.containsKey(type + "." + PbProperties.INCLUDEPATTERNS) ? initializePatternArray(parameters.getProperty(type + "." + PbProperties.INCLUDEPATTERNS)) : includePatterns_d;
@@ -1029,6 +1052,7 @@ public class PackageBuilder {
 
         final HashSet<String> typesToFetch = new HashSet<>();
         final String mdTypesToExamine = parameters.getProperty(PbProperties.METADATAITEMS);
+        final String mdTypesToSkip = parameters.getProperty(PbProperties.METADATAITEMSTOSKIP);
 
         // get a describe
         final DescribeMetadataResult dmr = this.srcMetadataConnection.describeMetadata(this.myApiVersion);
@@ -1036,8 +1060,8 @@ public class PackageBuilder {
 
         for (final DescribeMetadataObject obj : dmr.getMetadataObjects()) {
             this.describeMetadataObjectsMap.put(obj.getXmlName(), obj);
-            if(obj.getChildXmlNames() != null && obj.getChildXmlNames().length > 0) {
-                for (final String childName : obj.getChildXmlNames())  {
+            if (obj.getChildXmlNames() != null && obj.getChildXmlNames().length > 0) {
+                for (final String childName : obj.getChildXmlNames()) {
                     this.describeMetadataObjectsMap.put(childName, obj);
                 }
             }
@@ -1054,7 +1078,7 @@ public class PackageBuilder {
 
             this.describeMetadataObjectsMap.keySet().forEach(obj -> {
                 typesToFetch.add(obj.trim());
-                
+
             });
 
             // now add the list of types to be added manually
@@ -1062,10 +1086,15 @@ public class PackageBuilder {
                 typesToFetch.add(manualType.trim());
             }
 
-            // check API version - in 45+, remove FlowDefinition
-            if (Double.valueOf(parameters.getProperty(PbProperties.APIVERSION)) >= 45) {
-                typesToFetch.remove("FlowDefinition");
+            if (mdTypesToSkip != null) {
+                for (final String s : mdTypesToSkip.split(",")) {
+                    typesToFetch.remove(s.trim());
+                }
             }
+            // check API version - in 45+, remove FlowDefinition
+//            if (Double.valueOf(parameters.getProperty(PbProperties.APIVERSION)) >= 45) {
+//                typesToFetch.remove("FlowDefinition");
+//            }
 
         }
         return typesToFetch;
@@ -1149,7 +1178,7 @@ public class PackageBuilder {
             includeUsername_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDEUSERNAME) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.INCLUDEUSERNAME)) : includeUsername_d;
             forceIncludePatterns_r = parameters.containsKey(mdType + "." + PbProperties.FORCEINCLUDEPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.FORCEINCLUDEPATTERNS)) : forceIncludePatterns_d;
             metadataSubTypeIncludePatterns_r = parameters.containsKey(mdType + "." + PbProperties.METADATASUBTYPEINCLUDEPATTERN) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.METADATASUBTYPEINCLUDEPATTERN)) : forceIncludePatterns_d;
-                    
+
             //Type specific overrides
             if (mdType.equals("InstalledPackage")) {
                 logger.log(Level.INFO, "Setting override for " + mdType + " skipmanagedstateinstalled = false");
@@ -1164,7 +1193,7 @@ public class PackageBuilder {
 
             String activeSkipPattern = "\n*\n************************";
             activeSkipPattern += "\n* skipmanagedstateinstalled       " + skipManageableStateInstalled_r;
-            
+
             if (mdType.equals("Flow")) {
                 activeSkipPattern += "\n* limittoactive                   " + limitToActive_r;
             }
@@ -1334,9 +1363,9 @@ public class PackageBuilder {
                                         Flow flow = (Flow) mdt[0];
                                         mdItem.setStatus(flow.getStatus() == null ? "Managed" : flow.getStatus().toString());
                                         logger.log(Level.FINE, "Flow " + metadataObjectName + " status: " + mdItem.getStatus());
-                                    } else if (mdItem.getType().equals("CustomField")){
+                                    } else if (mdItem.getType().equals("CustomField")) {
                                         CustomField cf = (CustomField) mdt[0];
-                                        mdItem.setMetadataSubType(cf.getType() == null ? "Unknown" : cf.getType().toString() );
+                                        mdItem.setMetadataSubType(cf.getType() == null ? "Unknown" : cf.getType().toString());
                                         logger.log(Level.FINE, "CustomField " + metadataObjectName + " Sub-Type: " + mdItem.getMetadataSubType());
                                     }
 
@@ -1358,17 +1387,17 @@ public class PackageBuilder {
                         itemSkipped = true;
                         logger.log(Level.INFO, "Skip non-active or managed metadata: " + metadataObjectName + ", item will be skipped.");
                     }
-                    
+
                     //Check for Sub Type (CustoField Types)
                     if (!itemSkipped && metadataSubTypeIncludePatterns_r.size() > 0) {
                         boolean matchesPattern = false;
-                        String lastModUsername = mdItem.getMetadataSubType()== null ? "null" : mdItem.getMetadataSubType();
+                        String lastModUsername = mdItem.getMetadataSubType() == null ? "null" : mdItem.getMetadataSubType();
                         for (Pattern p : metadataSubTypeIncludePatterns_r) {
                             final Matcher m = p.matcher(lastModUsername);
                             if (m.matches()) {
                                 matchesPattern = true;
                                 logger.log(Level.FINEST, "Metadata Sub Type Filter MATCH: " + metadataObjectName + " (" + mdItem.getMetadataSubType()
-                                    + ") ");
+                                        + ") ");
                             }
                         }
                         if (!matchesPattern) {
@@ -1409,10 +1438,22 @@ public class PackageBuilder {
         return retVal;
     }
 
+    private ArrayList<String> initializeStringArray(String parameter) {
+        ArrayList<String> retVal = new ArrayList<>();
+        if (parameter != null) {
+            for (final String p : parameter.split(",")) {
+                if (p != null && p.length() > 0) {
+                    retVal.add(p);
+                }
+            }
+        }
+        return retVal;
+    }
+
     private boolean isParamTrue(final String paramName) {
         if (parameters.containsKey(paramName)) {
             String value = parameters.getProperty(paramName);
-            
+
             return !"false".equals(value);
         }
         return false;

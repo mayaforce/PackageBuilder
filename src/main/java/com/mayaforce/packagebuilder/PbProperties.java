@@ -37,6 +37,7 @@ public class PbProperties {
     public static final String RETAINTARGETDIR = "retaintargetdir";
     public static final String MAXITEMS = "maxitems";
     public static final String METADATAITEMS = "metadataitems";
+    public static final String METADATAITEMSTOSKIP = "metadataitemstoskip";
     public static final String PASSWORD = "sf.password";
     public static final String LOGLEVEL = "loglevel";
     public static final String USERNAME = "sf.username";
@@ -58,4 +59,5 @@ public class PbProperties {
     public static final String LIMITTOACTIVE = "limittoactive"; // Limits objects (mainly Flows) to only active flows. 
     public static final String VERIFYMETADATAREAD = "verifymetadataread"; // forces a read check on every item of metadata found. Not recommended for production use. 
     public static final String METADATASUBTYPEINCLUDEPATTERN = "metadatasubtypeincludepattern";
+    public static final String FORCEINCLUDENAMES = "forceincludenames";
 }
