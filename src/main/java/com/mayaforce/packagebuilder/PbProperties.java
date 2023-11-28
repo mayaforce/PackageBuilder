@@ -41,6 +41,7 @@ public class PbProperties {
     public static final String PASSWORD = "sf.password";
     public static final String LOGLEVEL = "loglevel";
     public static final String USERNAME = "sf.username";
+    public static final String ACCESSTOKEN = "sf.accessToken";
     public static final String FORCEINCLUDEPATTERNS = "forceincludepatterns"; // When specified, will force the match to be included regardless of date, username, etc.
     public static final String SKIPPATTERNS = "skippatterns";
     public static final String DOWNLOAD = "download";

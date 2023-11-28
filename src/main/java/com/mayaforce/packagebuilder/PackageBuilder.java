@@ -84,6 +84,7 @@ public class PackageBuilder {
     private String srcUser;
     private String srcPwd;
     private String srcToken;
+    private String srcAccessToken;
     private String metaSourceDownloadDir = "src";
     private final long totalTimeStart = System.currentTimeMillis();
     private String targetDir = "";
@@ -569,7 +570,13 @@ public class PackageBuilder {
                 final SObject[] records = qResult.getRecords();
                 SObject o = records[0];
                 String parentId = (String) o.getField("ParentId");
-                String developerName = (String) o.getField("DeveloperName");
+                String metaPrefix = (String) o.getField("NamespacePrefix");
+                if (metaPrefix != null && metaPrefix.length() > 1) {
+                    metaPrefix += "__";
+                } else {
+                    metaPrefix = "";
+                }
+                String developerName = metaPrefix + (String) o.getField("DeveloperName");
                 logger.log(Level.FINER, String.format("getFullFolderPath metadataType: %s || folderId: %s || parentId %s || developerName: %s", metadataType.getXmlName(), folderId, parentId, developerName));
 
                 if (parentId == null && folderRecursivePath.containsKey(lookupKey)) {
@@ -623,6 +630,9 @@ public class PackageBuilder {
             type = metadataType.getXmlName() + "Folder";
         }
 
+        boolean skipManageableStateInstalled_r = false;
+        skipManageableStateInstalled_r = parameters.containsKey(type + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) ? isParamTrue(type + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) : this.skipManageableStateInstalled;
+
         ArrayList<Pattern> skipPatterns_d = initializePatternArray(parameters.getProperty(PbProperties.SKIPPATTERNS));
         ArrayList<Pattern> includePatterns_d = initializePatternArray(parameters.getProperty(PbProperties.INCLUDEPATTERNS));
         ArrayList<Pattern> forceIncludePatterns_d = initializePatternArray(parameters.getProperty(PbProperties.FORCEINCLUDEPATTERNS));
@@ -652,8 +662,8 @@ public class PackageBuilder {
             for (final FileProperties n : srcMd) {
 
                 // add folder to final inventory
-                if (n.getManageableState().name().equals("installed")) {
-                    logger.log(Level.FINER, "Skipping folder " + n.getFullName() + " because it is managed.");
+                if (skipManageableStateInstalled_r && n.getManageableState().name().equals("installed")) {
+                    logger.log(Level.INFO, "Skipping folder " + n.getFullName() + " because it is managed.");
                 } else {
 //                    String tempArray[] = { n.getFullName()};
 //                    ReadResult rr =  this.srcMetadataConnection.readMetadata(type, tempArray);
@@ -853,10 +863,11 @@ public class PackageBuilder {
         this.srcPwd = parameters.getProperty(PbProperties.PASSWORD);
         this.srcToken = parameters.getProperty(PbProperties.TOKEN);
         this.skipItems = parameters.getProperty(PbProperties.SKIPPATTERNS);
+        this.srcAccessToken = parameters.getProperty(PbProperties.ACCESSTOKEN);
         // Make a login call to source
-        this.srcPartnerConnection = LoginUtil.soapLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
+        this.srcPartnerConnection = LoginUtil.soapLogin(this.srcUrl, this.srcAccessToken, this.srcUser, this.srcPwd, this.srcToken, logger);
 
-        this.srcMetadataConnection = LoginUtil.mdLogin(this.srcUrl, this.srcUser, this.srcPwd, this.srcToken, logger);
+        this.srcMetadataConnection = LoginUtil.mdLogin(this.srcUrl, this.srcAccessToken, this.srcUser, this.srcPwd, this.srcToken, logger);
 
         // Figure out what we are going to be fetching
         final ArrayList<String> workToDo = new ArrayList<>(this.getTypesToFetch());

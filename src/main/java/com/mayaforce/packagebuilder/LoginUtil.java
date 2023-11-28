@@ -15,73 +15,85 @@ public class LoginUtil {
     /*
      * Creates a MetadataConnection based on url, credentials
      */
-    public static MetadataConnection mdLogin(final Properties props, Logger logger) throws ConnectionException {
-        final String username = props.getProperty(PbProperties.USERNAME);
-        final String password = props.getProperty(PbProperties.PASSWORD);
-        final String token = props.getProperty(PbProperties.TOKEN);
-        String url = props.getProperty(PbProperties.URLBASE);
-
-        if ((username != null) && (password != null) && (url != null)) {
-
-            // check if it's the full url (contains /services/Soap/u/API), add
-            // if necessary
-            if (!(url.contains("/services/Soap/u/"))) {
-                url += "/services/Soap/u/" + props.getProperty(PbProperties.APIVERSION, PbConstants.DEFAULT_API_VERSION);
-            }
-
-            return LoginUtil.mdLogin(url, username, password, token, logger);
-        } else {
-            return null;
-        }
-    }
+//    public static MetadataConnection mdLogin(final Properties props, Logger logger) throws ConnectionException {
+//        final String username = props.getProperty(PbProperties.USERNAME);
+//        final String password = props.getProperty(PbProperties.PASSWORD);
+//        final String token = props.getProperty(PbProperties.TOKEN);
+//        String url = props.getProperty(PbProperties.URLBASE);
+//
+//        if ((username != null) && (password != null) && (url != null)) {
+//
+//            // check if it's the full url (contains /services/Soap/u/API), add
+//            // if necessary
+//            if (!(url.contains("/services/Soap/u/"))) {
+//                url += "/services/Soap/u/" + props.getProperty(PbProperties.APIVERSION, PbConstants.DEFAULT_API_VERSION);
+//            }
+//
+//            return LoginUtil.mdLogin(url, username, password, token, logger);
+//        } else {
+//            return null;
+//        }
+//    }
 
     /*
      * Creates a MetadataConnection based on a properties object
     This is used
      */
-    public static MetadataConnection mdLogin(final String url, final String user, final String pwd, final String token, Logger logger)
+    private static PartnerConnection partnerConn;
+    private static ConnectorConfig partnerConfig;
+    private static ConnectorConfig metadataConfig;
+    private static MetadataConnection metadataConn;
+
+    public static MetadataConnection mdLogin(final String url, final String accessToken, final String user, final String pwd, final String token, Logger logger)
             throws ConnectionException {
-        final LoginResult loginResult = LoginUtil.loginToSalesforce(user, pwd + token, url);
-        return LoginUtil.createMetadataConnection(loginResult);
+        if (metadataConn == null || metadataConn.getConfig().getSessionId() == null) {
+            metadataConn = new MetadataConnection(getConnectorConfig(url, accessToken, user, pwd, token, logger, false));
+        }
+        return metadataConn;
     }
 
-    public static PartnerConnection soapLogin(final String url, final String user, final String pwd, final String token, Logger logger) {
+    public static PartnerConnection soapLogin(final String url, final String accessToken, final String user, final String pwd, final String token, Logger logger) throws ConnectionException {
+        if (partnerConn == null || partnerConn.getConfig().getSessionId() == null) {
+            partnerConn = new PartnerConnection(getConnectorConfig(url, accessToken, user, pwd, token, logger, true));
+        }
+        return partnerConn;
+    }
 
-        PartnerConnection conn = null;
+    private static ConnectorConfig getConnectorConfig(final String url, final String accessToken, final String user, final String pwd, final String token, Logger logger, boolean isPartner) throws ConnectionException {
+        if (partnerConfig == null) {
+            partnerConfig = new ConnectorConfig();
+            metadataConfig = new ConnectorConfig();
+            partnerConfig.setAuthEndpoint(url);
+            metadataConfig.setAuthEndpoint(url);
+            partnerConfig.setServiceEndpoint(url);
+            metadataConfig.setServiceEndpoint(url.replaceAll("/u/", "/m/"));
+            partnerConfig.setManualLogin(true);
+            metadataConfig.setManualLogin(true);
+            if (accessToken != null && accessToken.length() > 80) {
+                partnerConfig.setSessionId(accessToken);
+                metadataConfig.setSessionId(accessToken);
+            } else {
 
-        try {
-            final ConnectorConfig config = new ConnectorConfig();
-            config.setUsername(user);
-            config.setPassword(pwd + token);
-
-            logger.log(Level.INFO, "AuthEndPoint: " + url);
-            config.setAuthEndpoint(url);
-
-            conn = new PartnerConnection(config);
-
-        } catch (final ConnectionException ce) {
-            ce.printStackTrace();
+            }
         }
 
-        return conn;
+        //Login if needed:
+        if (partnerConfig.getSessionId() == null) {
+            if (partnerConn == null) {
+                partnerConn = new PartnerConnection(partnerConfig);
+            }
+            LoginResult lr = partnerConn.login(user, pwd + token);
+            logger.fine("Url before: " + partnerConfig.getServiceEndpoint());
+            logger.fine("New url: " + lr.getMetadataServerUrl());
+            metadataConfig.setServiceEndpoint(lr.getMetadataServerUrl());
+            partnerConfig.setSessionId(lr.getSessionId());
+            metadataConfig.setSessionId(lr.getSessionId());
+        }
+        if (isPartner) {
+            return partnerConfig;
+        } else {
+            return metadataConfig;
+        }
     }
 
-    private static MetadataConnection createMetadataConnection(final LoginResult loginResult)
-            throws ConnectionException {
-        final ConnectorConfig config = new ConnectorConfig();
-        config.setServiceEndpoint(loginResult.getMetadataServerUrl());
-        config.setSessionId(loginResult.getSessionId());
-        return new MetadataConnection(config);
-    }
-
-    private static LoginResult loginToSalesforce(
-            final String username,
-            final String password,
-            final String loginUrl) throws ConnectionException {
-        final ConnectorConfig config = new ConnectorConfig();
-        config.setAuthEndpoint(loginUrl);
-        config.setServiceEndpoint(loginUrl);
-        config.setManualLogin(true);
-        return (new PartnerConnection(config)).login(username, password);
-    }
 }
