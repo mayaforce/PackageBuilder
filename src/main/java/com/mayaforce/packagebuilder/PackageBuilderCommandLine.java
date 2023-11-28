@@ -99,7 +99,7 @@ public class PackageBuilderCommandLine {
             Iterator<Option> i = line.iterator();
             while (i.hasNext()) {
                 Option opt = i.next();
-                if (options.getOption(opt.getLongOpt()).hasArg()) { 
+                if (options.getOption(opt.getLongOpt()).hasArg()) {
                     buildProps.put(opt.getLongOpt(), opt.getValue());
                 } else {
                     buildProps.put(opt.getLongOpt(), "true");
@@ -177,9 +177,8 @@ public class PackageBuilderCommandLine {
         if (buildProps.containsKey(PbProperties.BASEDIRECTORY) && buildProps.containsKey(PbProperties.DESTINATION)) {
             canProceed = true;
         }
-        if (buildProps.containsKey(PbProperties.SERVERURL)
-                && buildProps.containsKey(PbProperties.USERNAME)
-                && buildProps.containsKey(PbProperties.PASSWORD)) {
+        if (buildProps.containsKey(PbProperties.ACCESSTOKEN) && buildProps.containsKey(PbProperties.SERVERURL) || (buildProps.containsKey(PbProperties.USERNAME)
+                && buildProps.containsKey(PbProperties.PASSWORD) && buildProps.containsKey(PbProperties.SERVERURL))) {
             canProceed = true;
         } else {
             System.out.println("Mandatory parameters not provided in files or commandline -"
@@ -221,6 +220,7 @@ public class PackageBuilderCommandLine {
         setupParameter("c", PbProperties.CONNECTPROPS, "file containing environment connection parameters. sf.username, sf.password, sf.apiversion, sf.serverurl(see below)", true);
         setupParameter("a", PbProperties.APIVERSION, "api version to use, will default to " + PbConstants.DEFAULT_API_VERSION + "\nsf.apiversion in property file", true);
         setupParameter("s", PbProperties.SERVERURL, "server URL for the org (https://login.salesforce.com) \nsf.serverurl in property file", true);
+        setupParameter("a", PbProperties.ACCESSTOKEN, "SessionId or AccessToken from an already established session. sf org details for example", true);
         setupParameter("p", PbProperties.PASSWORD, "password for the org (t0pSecr3t) \nsf.password in property file", true);
         setupParameter("q", PbProperties.TOKEN, "token for the org (t0pSecr3t) \nsf.password in property file", true);
         setupParameter("u", PbProperties.USERNAME, "username for the org (someuser@someorg.com) \nsf.username in property file\"", true);
@@ -241,9 +241,9 @@ public class PackageBuilderCommandLine {
 
     private static void displayVersionNumber() throws IOException, XmlPullParserException {
         Package ver = PackageBuilderCommandLine.class.getPackage();
-        
+
         System.out.println("Title:   " + ver.getImplementationTitle() + "\nVersion: " + ver.getImplementationVersion());
- 
+
     }
 
 }
