@@ -18,7 +18,7 @@
  */
 package com.mayaforce.packagebuilder;
 
-import java.io.IOException;
+import java.io.IOException; 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -218,7 +218,7 @@ public class PackageBuilderCommandLine {
 
         setupParameter("b", PbProperties.BUILDPROPS, "file containing org parameters (see below)", true);
         setupParameter("c", PbProperties.CONNECTPROPS, "file containing environment connection parameters. sf.username, sf.password, sf.apiversion, sf.serverurl(see below)", true);
-        setupParameter("a", PbProperties.APIVERSION, "api version to use, will default to " + PbConstants.DEFAULT_API_VERSION + "\nsf.apiversion in property file", true);
+        setupParameter("v", PbProperties.APIVERSION, "api version to use, will default to " + PbConstants.DEFAULT_API_VERSION + "\nsf.apiversion in property file", true);
         setupParameter("s", PbProperties.SERVERURL, "server URL for the org (https://login.salesforce.com) \nsf.serverurl in property file", true);
         setupParameter("a", PbProperties.ACCESSTOKEN, "SessionId or AccessToken from an already established session. sf org details for example", true);
         setupParameter("p", PbProperties.PASSWORD, "password for the org (t0pSecr3t) \nsf.password in property file", true);

@@ -21,7 +21,7 @@ package com.mayaforce.packagebuilder;
  */
 public class PbConstants {
 
-    public static final String DEFAULT_API_VERSION = "54.0";
+    public static final String DEFAULT_API_VERSION = "59.0"; 
     public static final boolean DEFAULT_INCLUDECHANGEDATA = false;
     // Static values that don't change
     public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
