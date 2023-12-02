@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mayaforce</groupId>
     <artifactId>packagebuilder</artifactId>
-    <version>3.8d.SFDCv59.0</version>
+    <version>3.9.SFDCv59.0</version>
     <name>Salesforce Package Builder</name>
     <packaging>jar</packaging>
     <description>Generate package.xml files for Salesforce - API 59 enabled</description>
@@ -103,7 +103,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.15.0</version>
+            <version>2.15.1</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jgit</groupId>

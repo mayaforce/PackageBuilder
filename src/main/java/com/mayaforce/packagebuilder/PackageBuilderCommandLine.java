@@ -190,7 +190,7 @@ public class PackageBuilderCommandLine {
         Collections.sort(propNameList);
 
         propNameList.forEach(key -> {
-            if (key.equals(PbProperties.PASSWORD) || key.equals(PbProperties.TODATE)) {
+            if (key.equals(PbProperties.PASSWORD) || key.equals(PbProperties.TOKEN) || key.equals(PbProperties.ACCESSTOKEN)) {
                 String val = (String) buildProps.get(key);
                 System.out.println(key + ":" + val.replaceAll(".", "*"));
             } else {

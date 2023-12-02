@@ -53,6 +53,7 @@ public class LogFormatter extends Formatter {
         if (!this.appendLine) {
             builder.append(df.format(new Date(record.getMillis()))).append(" - ");
             builder.append("[").append(record.getLevel()).append("] - ");
+            builder.append("((").append(record.getSourceMethodName()).append("))");
         }
         if (recordMessage.endsWith("\\")) {
             builder.append(recordMessage.substring(0, recordMessage.length() - 1));

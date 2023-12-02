@@ -9,7 +9,6 @@ import com.sforce.soap.metadata.DescribeMetadataResult;
 import com.sforce.soap.metadata.FileProperties;
 import com.sforce.soap.metadata.Flow;
 import com.sforce.soap.metadata.CustomField;
-import com.sforce.soap.metadata.InstalledPackage;
 import com.sforce.soap.metadata.ListMetadataQuery;
 import com.sforce.soap.metadata.ManageableState;
 import com.sforce.soap.metadata.Metadata;
@@ -46,7 +45,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 
 public class PackageBuilder {
 
@@ -487,6 +485,9 @@ public class PackageBuilder {
 
                 if (metadataItemCount > 0 || forceIncludeNames_r != null || metadataType.equals("StandardValueSet")) {
                     this.existingTypes.add(metadataType);
+                    if (metadataType.equals("WaveRecipe")) {
+                        this.existingTypes.add("WaveDataflow");
+                    }
                 }
 
                 if (forceIncludeNames_r != null) {
@@ -527,6 +528,26 @@ public class PackageBuilder {
                                 if (!skipFile) {
                                     packageInventoryList.put(n.getFullName(), i);
                                     logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
+                                    if (metadataType.equalsIgnoreCase("WaveRecipe")) {
+                                        //Always add the Dataflow for every wave Recipe - These don't return via metadata query. 
+                                        FileProperties waveDfFp = new FileProperties();
+                                        DescribeMetadataObject waveDfMd = this.describeMetadataObjectsMap.get("WaveDataflow");
+                                        waveDfFp.setCreatedById(n.getCreatedById());
+                                        waveDfFp.setCreatedByName(n.getCreatedByName());
+                                        waveDfFp.setCreatedDate(n.getCreatedDate());
+                                        waveDfFp.setFileName(waveDfMd.getDirectoryName() + "/" + n.getFullName() + "." + waveDfMd.getSuffix());
+                                        waveDfFp.setFullName(n.getFullName());
+                                        waveDfFp.setId(n.getId()); //This will be wrong, but we don't use it. 
+                                        waveDfFp.setLastModifiedById(n.getLastModifiedById());
+                                        waveDfFp.setLastModifiedByName(n.getLastModifiedByName());
+                                        waveDfFp.setLastModifiedDate(n.getLastModifiedDate());
+                                        waveDfFp.setManageableState(n.getManageableState());
+                                        waveDfFp.setNamespacePrefix(n.getNamespacePrefix());
+                                        waveDfFp.setType("WaveDataflow");
+                                        InventoryItem waveDf = new InventoryItem(n.getFullName(), waveDfFp, waveDfMd);
+                                        packageInventoryList.put(n.getFullName(), waveDf);
+                                        logger.log(Level.FINE, "Adding WaveDataflow Override " + waveDf.getExtendedName() + " to inventory. - Filename: " + waveDf.getFullName() + " itemName: " + waveDf.getItemName() + "  n.fullName:" + n.getFullName());
+                                    }
                                 }
                             } else {
                                 logger.log(Level.FINE, "skipping item " + n.getNamespacePrefix() + " from " + n.getFullName() + " inventory.");
@@ -886,22 +907,41 @@ public class PackageBuilder {
             counter++;
             final String mdType = i.next();
 
-            if (logger.getLevel() == Level.FINE) {
-                logger.log(Level.FINE, "*********************************************");
-            }
+            logger.log(Level.FINE, "*********************************************");
             logger.log(Level.INFO, "Processing type " + counter + " out of " + workToDo.size() + ": " + mdType + (Level.INFO == thisLogLevel ? "\\" : ""));
 
             final ArrayList<InventoryItem> mdTypeItemList = new ArrayList<>(this.fetchMetadataType(mdType).values());
             Collections.sort(mdTypeItemList, (o1, o2) -> o1.getItemName().compareTo(o2.getItemName()));
-            inventory.put(mdType, mdTypeItemList);
+            
+            //WaveRecipe values need to also be added as a WaveDataflow. 
+            //There will be extra entries in the array, but those get ignored when skip check runs. 
+            if (mdType.equalsIgnoreCase("WaveRecipe")) {
+                if (inventory.containsKey("WaveDataflow")) {
+                    ArrayList<InventoryItem> waveInventoryArray = (ArrayList<InventoryItem>) inventory.get("WaveDataflow").clone();
+                    waveInventoryArray.addAll(mdTypeItemList);
+                    inventory.put("WaveDataflow", waveInventoryArray);
+                } else {
+                    inventory.put("WaveDataflow", mdTypeItemList);
+                }
+            }
+            
+            // When checkign WaveDataflow, ensure that we concatenate with any existing values added by the WaveRecipe override above. 
+            if (mdType.equalsIgnoreCase("WaveDataflow")) {
+                if (inventory.containsKey("WaveDataflow")) {
+                    ArrayList<InventoryItem> waveInventoryArray = (ArrayList<InventoryItem>) inventory.get("WaveDataflow").clone();
+                    waveInventoryArray.addAll(mdTypeItemList);
+                    inventory.put("WaveDataflow", waveInventoryArray);
+                } else {
+                    inventory.put("WaveDataflow", mdTypeItemList);
+                }
+            } else {
+                inventory.put(mdType, mdTypeItemList);
+            }
 
             logger.log(Level.INFO, " items: " + mdTypeItemList.size());
-
-            if (logger.getLevel() == Level.FINE) {
-                logger.log(Level.FINE, "Finished processing: " + mdType);
-                logger.log(Level.FINE, "*********************************************");
-                logger.log(Level.FINE, "");
-            }
+            logger.log(Level.FINE, "Finished processing: " + mdType);
+            logger.log(Level.FINE, "*********************************************");
+            logger.log(Level.FINE, "");
 
         }
     }
@@ -1102,11 +1142,14 @@ public class PackageBuilder {
                     typesToFetch.remove(s.trim());
                 }
             }
+
             // check API version - in 45+, remove FlowDefinition
 //            if (Double.valueOf(parameters.getProperty(PbProperties.APIVERSION)) >= 45) {
 //                typesToFetch.remove("FlowDefinition");
 //            }
-
+        }
+        if (typesToFetch.contains("WaveRecipe")) {
+            typesToFetch.add("WaveDataflow");
         }
         return typesToFetch;
     }
