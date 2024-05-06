@@ -35,7 +35,7 @@ public class ProfileCompare {
         private static final long serialVersionUID = 576428229572675412L;
 
         {
-            put("userPermissions", "com.kgal.packagebuilder.profilecompare.UserPermissionsComparer");
+            put("userPermissions", "com.mayaforce.packagebuilder.profilecompare.UserPermissionsComparer");
         }
     };
 

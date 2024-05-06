@@ -17,15 +17,26 @@ import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.soap.partner.QueryResult;
 import com.sforce.soap.partner.sobject.SObject;
 import com.sforce.ws.ConnectionException;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONArray;
+import org.json.simple.parser.JSONParser;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
 import java.rmi.RemoteException;
-import java.sql.Date;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -45,21 +56,19 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 public class PackageBuilder {
 
     public enum OperationMode {
         DIR(0), ORG(1);
 
-        private final int level;
-
         OperationMode(final int level) {
-            this.level = level;
         }
 
-        int getLevel() {
-            return this.level;
-        }
     }
 
     // Logging
@@ -76,9 +85,9 @@ public class PackageBuilder {
     private HashMap<String, DescribeMetadataObject> describeMetadataObjectsMap;
 
     private HashMap<String, String> folderRecursivePath = new HashMap<>(); //String1: Metadata Type|Folder Name String2: Full path
-    String authEndPoint = "";
     private MetadataConnection srcMetadataConnection;
     private String srcUrl;
+    private String srcUrlBase;
     private String srcUser;
     private String srcPwd;
     private String srcToken;
@@ -86,7 +95,6 @@ public class PackageBuilder {
     private String metaSourceDownloadDir = "src";
     private final long totalTimeStart = System.currentTimeMillis();
     private String targetDir = "";
-    private OperationMode mode;
     private PartnerConnection srcPartnerConnection;
 
     private boolean includeChangeData = false;
@@ -162,10 +170,8 @@ public class PackageBuilder {
 
         if (parameters.getProperty(PbProperties.BASEDIRECTORY) != null) {
             this.generateInventoryFromDir(inventory);
-            this.mode = OperationMode.DIR;
         } else {
             this.generateInventoryFromOrg(inventory);
-            this.mode = OperationMode.ORG;
         }
         // This is where the actual work happens creating Package[].xml AND download/unzip assets
         this.generatePackageXML(inventory);
@@ -220,18 +226,17 @@ public class PackageBuilder {
         }
 
         if (item == null) {
-            logger.log(Level.INFO, "Found no inventory match for file " + f.getCanonicalPath());
+            logger.log(Level.INFO, "Found no inventory match for file {0}", f.getCanonicalPath());
         } else {
-            logger.log(Level.FINER, "Found an inventory match for file " + f.getCanonicalPath() + " with key " + key);
+            logger.log(Level.FINER, "Found an inventory match for file {0} with key {1}", new Object[]{f.getCanonicalPath(), key});
         }
 
-        // TODO Auto-generated method stub
         return item;
     }
 
     private HashMap<String, HashMap<String, ArrayList<InventoryItem>>> createPackageFiles(final HashMap<String, ArrayList<InventoryItem>> myCompleteInventory) {
 
-        final ArrayList<HashMap<String, ArrayList<InventoryItem>>> files = new ArrayList<HashMap<String, ArrayList<InventoryItem>>>();
+        final ArrayList<HashMap<String, ArrayList<InventoryItem>>> files = new ArrayList<>();
 
         // first, check how many items we have
         // if no more than one file, con't bother with any special treatment
@@ -274,7 +279,7 @@ public class PackageBuilder {
                 final HashMap<String, ArrayList<InventoryItem>> mySpecialTreatmentInventory = new HashMap<>();
 
                 for (final String mdType : ArrayUtils.addAll(PbConstants.SPECIALTREATMENTPERMISSIONTYPES, PbConstants.ITEMSTOINCLUDEWITHPROFILESPERMSETS)) {
-                    if (myCompleteInventory.get(mdType) != null && myCompleteInventory.get(mdType).size() > 0) {
+                    if (myCompleteInventory.get(mdType) != null && !myCompleteInventory.get(mdType).isEmpty()) {
                         mySpecialTreatmentInventory.put(mdType, myCompleteInventory.get(mdType));
                         myCompleteInventory.remove(mdType);
                     }
@@ -285,8 +290,7 @@ public class PackageBuilder {
 
                 // check if we got 1 file only, log if not
                 if (files.size() != 1) {
-                    logger.log(Level.INFO, "Permission settings (Profiles/PermSets) with dependent items over " + maxItemsInRegularPackage
-                            + " items - won't fit in one package. Please note that contents of profiles/permission sets may be incomplete.");
+                    logger.log(Level.INFO, "Permission settings (Profiles/PermSets) with dependent items over {0} items - won''t fit in one package. Please note that contents of profiles/permission sets may be incomplete.", maxItemsInRegularPackage);
                 }
 
             }
@@ -341,20 +345,18 @@ public class PackageBuilder {
                 // no, we don't, finish file off, add to list, create new and
                 // add to that
 
-                logger.log(Level.FINE, "Type " + mdType + ", won't fit into this file - #items: " + mdTypeSize + ".");
+                logger.log(Level.FINE, "Type {0}, won''t fit into this file - #items: {1}.", new Object[]{mdType, mdTypeSize});
 
                 //put part of this type into this file
                 ArrayList<InventoryItem> mdTypeListPartial = new ArrayList<>(mdTypeList.subList(0, maxItemsInRegularPackage - fileCount));
                 currentFile.put(mdType, mdTypeListPartial);
                 mdTypeList.removeAll(mdTypeListPartial);
                 fileCount += mdTypeListPartial.size();
-                logger.log(Level.FINE,
-                        "Adding type: " + mdType + "(" + mdTypeListPartial.size() + " items) to file " + fileIndex + ", total count now: "
-                        + fileCount);
+                logger.log(Level.FINE, "Adding type: {0}({1} items) to file {2}, total count now: {3}", new Object[]{mdType, mdTypeListPartial.size(), fileIndex, fileCount});
                 if (!continuingPreviousFile) {
                     files.add(currentFile);
                 }
-                logger.log(Level.FINE, "Finished composing file " + fileIndex + ", total count: " + fileCount + " items.");
+                logger.log(Level.FINE, "Finished composing file {0}, total count: {1} items.", new Object[]{fileIndex, fileCount});
                 continuingPreviousFile = false;
 
                 // finish and start new file
@@ -376,13 +378,11 @@ public class PackageBuilder {
                 if (!continuingPreviousFile) {
                     files.add(currentFile);
                     continuingPreviousFile = false;
-                    logger.log(Level.FINE, "Finished composing file " + fileIndex + ", total count: " + fileCount + " items.");
+                    logger.log(Level.FINE, "Finished composing file {0}, total count: {1} items.", new Object[]{fileIndex, fileCount});
                 }
                 currentFile = new HashMap<>();
                 mdTypeList.removeAll(mdTypeListPartial);
-                logger.log(Level.FINE,
-                        "Adding type: " + mdType + "(" + mdTypeListPartial.size() + " items) to file " + fileIndex + ", total count now: "
-                        + fileCount);
+                logger.log(Level.FINE, "Adding type: {0}({1} items) to file {2}, total count now: {3}", new Object[]{mdType, mdTypeListPartial.size(), fileIndex, fileCount});
 
                 fileCount = 0;
                 fileIndex++;
@@ -391,15 +391,13 @@ public class PackageBuilder {
 
             currentFile.put(mdType, mdTypeList);
             fileCount += mdTypeList.size();
-            logger.log(Level.FINE,
-                    "Adding type: " + mdType + "(" + mdTypeList.size() + " items) to file " + fileIndex + ", total count now: "
-                    + fileCount);
+            logger.log(Level.FINE, "Adding type: {0}({1} items) to file {2}, total count now: {3}", new Object[]{mdType, mdTypeList.size(), fileIndex, fileCount});
         }
 
         // finish off any last file
         if (!continuingPreviousFile) {
             files.add(currentFile);
-            logger.log(Level.FINE, "Finished composing file " + fileIndex + ", total count: " + fileCount + " items.");
+            logger.log(Level.FINE, "Finished composing file {0}, total count: {1} items.", new Object[]{fileIndex, fileCount});
         }
 
         return files;
@@ -424,7 +422,77 @@ public class PackageBuilder {
                 TimeUnit.MILLISECONDS.toMinutes(diff) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(diff)),
                 TimeUnit.MILLISECONDS.toSeconds(diff)
                 - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(diff)));
-        logger.log(Level.FINE, message + " Duration: " + hms);
+        logger.log(Level.FINE, "{0} Duration: {1}", new Object[]{message, hms});
+    }
+
+    private void getFlowVersions(InventoryItem flowInventoryItem, HashMap<String, InventoryItem> packageInventoryList) throws ConnectionException, UnsupportedEncodingException {
+        DescribeMetadataObject flowMetadataObj = this.describeMetadataObjectsMap.get("Flow");
+
+        // build the query
+        final String query = "SELECT Id, Definition.DeveloperName, VersionNumber, Status, ManageableState, CreatedById, CreatedDate, LastModifiedById, LastModifiedDate FROM Flow WHERE ManageableState = 'unmanaged' AND  Definition.DeveloperName = '" + flowInventoryItem.getFullName() + "'";
+        HttpClient httpClient = HttpClientBuilder.create().build();
+        String fullRestUrl = this.srcUrlBase + "/services/data/v" + this.myApiVersion + "/tooling/query/?q=" + java.net.URLEncoder.encode(query, "ISO-8859-1");
+
+        logger.log(Level.FINEST, "Full Tooling API URL: {0}", fullRestUrl);
+        HttpGet httpGet = new HttpGet(fullRestUrl);
+
+        httpGet.addHeader("Authorization", "Bearer " + this.srcAccessToken);
+        httpGet.addHeader("Content-Type", "application/json");
+        JSONParser jparser = new JSONParser();
+
+        try {
+            HttpResponse response = httpClient.execute(httpGet);
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == 200) {
+                String response_string = EntityUtils.toString(response.getEntity());
+
+                logger.log(Level.FINEST, "Full Response JSON: {0}", response_string);
+                JSONObject json = (JSONObject) jparser.parse(response_string);
+                JSONArray j = (JSONArray) json.get("records");
+                for (int i = 0; i < j.size(); i++) {
+                    JSONObject o = (JSONObject) j.get(i);
+                    FileProperties flowFp = new FileProperties();
+                    String flowPlusVersionFilename = flowInventoryItem.getFullName() + "-" + ((Long) o.get("VersionNumber")).toString();
+
+                    flowFp.setCreatedById((String) o.get("CreatedById"));
+                    flowFp.setCreatedByName((String) o.get("CreatedById"));
+                    flowFp.setCreatedDate(getCalendarFromIso8601((String) o.get("CreatedDate")));
+                    flowFp.setFileName(flowMetadataObj.getDirectoryName() + "/" + flowPlusVersionFilename + "." + flowMetadataObj.getSuffix());
+                    flowFp.setFullName(flowPlusVersionFilename);
+                    flowFp.setId((String) o.get("Id")); //This will be wrong, but we don't use it. 
+                    flowFp.setLastModifiedById((String) o.get("LastModifiedById"));
+                    flowFp.setLastModifiedByName((String) o.get("LastModifiedById"));
+                    flowFp.setLastModifiedDate(getCalendarFromIso8601((String) o.get("LastModifiedDate")));
+                    flowFp.setManageableState(flowInventoryItem.getFileProperties().getManageableState());
+                    flowFp.setNamespacePrefix(flowInventoryItem.getFileProperties().getNamespacePrefix());
+                    flowFp.setType("Flow");
+                    InventoryItem flowVersion = new InventoryItem(flowPlusVersionFilename, flowFp, flowMetadataObj);
+
+                    packageInventoryList.put(flowPlusVersionFilename, flowVersion);
+
+                }
+            } else {
+                Logger.getLogger(PackageBuilder.class.getName()).log(Level.WARNING, response.toString());
+                Logger.getLogger(PackageBuilder.class.getName()).log(Level.WARNING, EntityUtils.toString(response.getEntity()));
+            }
+
+        } catch (IOException ex) {
+            Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (org.json.simple.parser.ParseException ex) {
+            Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    DateTimeFormatter iso8601JsonFormatter = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSZ");
+
+    private Calendar getCalendarFromIso8601(String iso8601Date) {
+
+        TemporalAccessor ta = iso8601JsonFormatter.parse(iso8601Date);
+        Instant id = Instant.from(ta);
+        Date d = Date.from(id);
+        Calendar ca = Calendar.getInstance();
+        ca.setTime(d);
+        return ca;
     }
 
     /*
@@ -436,6 +504,7 @@ public class PackageBuilder {
         //		final MetadataFetchReturnResult fetchResult = new MetadataFetchReturnResult(metadataType);
         final HashMap<String, InventoryItem> packageInventoryList = new HashMap<>();
         int metadataItemCount = 0;
+
         try {
             ArrayList<ListMetadataQuery> queries = new ArrayList<>();
 
@@ -479,8 +548,10 @@ public class PackageBuilder {
                 ArrayList<String> forceIncludeNames_r = null;
                 //Setup patterns for metadata types:
 
-                if (parameters.containsKey(metadataType + "." + PbProperties.FORCEINCLUDENAMES)) {
-                    forceIncludeNames_r = initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDENAMES));
+                boolean includeAllVersions_r = false;
+                if (parameters.containsKey(metadataType + "." + PbProperties.INCLUDEALLVERSIONS)) {
+                    includeAllVersions_r = parameters.containsKey(metadataType + "." + PbProperties.INCLUDEALLVERSIONS) ? isParamTrue(metadataType + "." + PbProperties.INCLUDEALLVERSIONS) : includeAllVersions_r;
+                    logger.log(Level.INFO, PbProperties.INCLUDEALLVERSIONS + " set to true");
                 }
 
                 if (metadataItemCount > 0 || forceIncludeNames_r != null || metadataType.equals("StandardValueSet")) {
@@ -501,22 +572,21 @@ public class PackageBuilder {
                         String forceIncludeItem = (String) it.next();
                         InventoryItem i = new InventoryItem(forceIncludeItem, folderName, metadataType);
                         packageInventoryList.put(forceIncludeItem, i);
-                        logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
+                        logger.log(Level.FINER, "Adding item {0} to inventory. - Filename: {1} itemName: {2}", new Object[]{i.getExtendedName(), i.getFullName(), i.getItemName()});
                     }
                 }
 
                 if (((srcMd != null) && (srcMd.length > 0)) || metadataType.equals("StandardValueSet")) {
-                    // hack alert - currently (API 45) listMetadata returns nothing for StandardValueSet
                     if (!metadataType.equals("StandardValueSet")) { //List setup in PbConstants.java
                         for (final FileProperties n : srcMd) {
-                            boolean skipFile = false;
+
                             //Always look at InstalledPackages if they are included as a metadata type regardless of the namespace. 
                             if ((includeNamespacedItems || n.getNamespacePrefix() == null) || n.getNamespacePrefix().equals("") || (metadataType.equals("InstalledPackage"))) {
                                 // packageMap.add(n.getFullName());
                                 InventoryItem i = new InventoryItem(n.getFullName(), n, this.describeMetadataObjectsMap.get(metadataType));
 
                                 if (obj != null && obj.getInFolder()) {
-                                    logger.log(Level.FINE, "Folder Detected " + obj.getXmlName() + " filename: " + i.getFileProperties().getFullName());
+                                    logger.log(Level.FINE, "Folder Detected {0} filename: {1}", new Object[]{obj.getXmlName(), i.getFileProperties().getFullName()});
                                     int indexOfFwdSlash = i.getFileProperties().getFullName().indexOf("/");
                                     String directory = i.getFileProperties().getFullName().substring(0, indexOfFwdSlash);
                                     String newDirectory = folderRecursivePath.get(obj.getDirectoryName() + '/' + directory);
@@ -525,32 +595,37 @@ public class PackageBuilder {
                                     i.setfullNameAndDirOverride(newFilename);
 
                                 }
-                                if (!skipFile) {
-                                    packageInventoryList.put(n.getFullName(), i);
-                                    logger.log(Level.FINER, "Adding item " + i.getExtendedName() + " to inventory. - Filename: " + i.getFullName() + " itemName: " + i.getItemName());
-                                    if (metadataType.equalsIgnoreCase("WaveRecipe")) {
-                                        //Always add the Dataflow for every wave Recipe - These don't return via metadata query. 
-                                        FileProperties waveDfFp = new FileProperties();
-                                        DescribeMetadataObject waveDfMd = this.describeMetadataObjectsMap.get("WaveDataflow");
-                                        waveDfFp.setCreatedById(n.getCreatedById());
-                                        waveDfFp.setCreatedByName(n.getCreatedByName());
-                                        waveDfFp.setCreatedDate(n.getCreatedDate());
-                                        waveDfFp.setFileName(waveDfMd.getDirectoryName() + "/" + n.getFullName() + "." + waveDfMd.getSuffix());
-                                        waveDfFp.setFullName(n.getFullName());
-                                        waveDfFp.setId(n.getId()); //This will be wrong, but we don't use it. 
-                                        waveDfFp.setLastModifiedById(n.getLastModifiedById());
-                                        waveDfFp.setLastModifiedByName(n.getLastModifiedByName());
-                                        waveDfFp.setLastModifiedDate(n.getLastModifiedDate());
-                                        waveDfFp.setManageableState(n.getManageableState());
-                                        waveDfFp.setNamespacePrefix(n.getNamespacePrefix());
-                                        waveDfFp.setType("WaveDataflow");
-                                        InventoryItem waveDf = new InventoryItem(n.getFullName(), waveDfFp, waveDfMd);
-                                        packageInventoryList.put(n.getFullName(), waveDf);
-                                        logger.log(Level.FINE, "Adding WaveDataflow Override " + waveDf.getExtendedName() + " to inventory. - Filename: " + waveDf.getFullName() + " itemName: " + waveDf.getItemName() + "  n.fullName:" + n.getFullName());
-                                    }
+
+                                packageInventoryList.put(n.getFullName(), i);
+                                logger.log(Level.FINER, "Adding item {0} to inventory. - Filename: {1} itemName: {2}", new Object[]{i.getExtendedName(), i.getFullName(), i.getItemName()});
+                                if (metadataType.equalsIgnoreCase("WaveRecipe")) {
+                                    //Always add the Dataflow for every wave Recipe - These don't return via metadata query. 
+                                    FileProperties waveDfFp = new FileProperties();
+                                    DescribeMetadataObject waveDfMd = this.describeMetadataObjectsMap.get("WaveDataflow");
+                                    waveDfFp.setCreatedById(n.getCreatedById());
+                                    waveDfFp.setCreatedByName(n.getCreatedByName());
+                                    waveDfFp.setCreatedDate(n.getCreatedDate());
+                                    waveDfFp.setFileName(waveDfMd.getDirectoryName() + "/" + n.getFullName() + "." + waveDfMd.getSuffix());
+                                    waveDfFp.setFullName(n.getFullName());
+                                    waveDfFp.setId(n.getId()); //This will be wrong, but we don't use it. 
+                                    waveDfFp.setLastModifiedById(n.getLastModifiedById());
+                                    waveDfFp.setLastModifiedByName(n.getLastModifiedByName());
+                                    waveDfFp.setLastModifiedDate(n.getLastModifiedDate());
+                                    waveDfFp.setManageableState(n.getManageableState());
+                                    waveDfFp.setNamespacePrefix(n.getNamespacePrefix());
+                                    waveDfFp.setType("WaveDataflow");
+                                    InventoryItem waveDf = new InventoryItem(n.getFullName(), waveDfFp, waveDfMd);
+                                    packageInventoryList.put(n.getFullName(), waveDf);
+                                    logger.log(Level.FINE, "Adding WaveDataflow Override {0} to inventory. - Filename: {1} itemName: {2}  n.fullName:{3}", new Object[]{waveDf.getExtendedName(), waveDf.getFullName(), waveDf.getItemName(), n.getFullName()});
                                 }
+                                if ("Flow".equalsIgnoreCase(metadataType) && includeAllVersions_r) {
+                                    logger.log(Level.FINEST, "Begin getFlowVersions");
+                                    getFlowVersions(i, packageInventoryList);
+                                    logger.log(Level.FINEST, "End getFlowVersions");
+                                }
+
                             } else {
-                                logger.log(Level.FINE, "skipping item " + n.getNamespacePrefix() + " from " + n.getFullName() + " inventory.");
+                                logger.log(Level.FINE, "skipping item {0} from {1} inventory.", new Object[]{n.getNamespacePrefix(), n.getFullName()});
                             }
                             //
                         }
@@ -559,7 +634,7 @@ public class PackageBuilder {
                         for (final String s : PbConstants.STANDARDVALUETYPESARRAY) {
                             InventoryItem i = new InventoryItem(s, "standardValueSets", metadataType);
                             packageInventoryList.put(s, i);
-                            logger.log(Level.FINER, "Adding item extendedName: " + i.getExtendedName() + " to inventory. FullName: " + i.getFullName());
+                            logger.log(Level.FINER, "Adding item extendedName: {0} to inventory. FullName: {1}", new Object[]{i.getExtendedName(), i.getFullName()});
                         }
                     }
 
@@ -571,8 +646,8 @@ public class PackageBuilder {
 
         } catch (final ConnectionException e) {
             // ce.printStackTrace();
-            logger.log(Level.INFO, "\nException processing: " + metadataType);
-            logger.log(Level.INFO, "Error: " + e.getMessage());
+            logger.log(Level.INFO, "\nException processing: {0}", metadataType);
+            logger.log(Level.INFO, "Error: {0}", e.getMessage());
         }
         this.endTiming(startTime, "");
 
@@ -601,20 +676,20 @@ public class PackageBuilder {
                 logger.log(Level.FINER, String.format("getFullFolderPath metadataType: %s || folderId: %s || parentId %s || developerName: %s", metadataType.getXmlName(), folderId, parentId, developerName));
 
                 if (parentId == null && folderRecursivePath.containsKey(lookupKey)) {
-                    logger.log(Level.FINER, "key found: " + lookupKey);
+                    logger.log(Level.FINER, "key found: {0}", lookupKey);
                     return folderRecursivePath.get(lookupKey);
                 } else {
                     String fullPath = developerName;
                     if (parentId != null && parentId.length() > 0) {
                         // Folder has a parent, need to go to the parent to get the full path (recursive)
-                        logger.log(Level.FINER, "Parent found. Recursive call. fullPath: " + fullPath + " parentId: " + parentId);
+                        logger.log(Level.FINER, "Parent found. Recursive call. fullPath: {0} parentId: {1}", new Object[]{fullPath, parentId});
                         String parentPath = getFullFolderPath(metadataType, lookupKey, parentId, level + 1);
                         fullPath = parentPath + '/' + developerName;
 
                     }
 
                     if (level == 1) {
-                        logger.log(Level.FINER, "Adding " + lookupKey + " with value: " + fullPath);
+                        logger.log(Level.FINER, "Adding {0} with value: {1}", new Object[]{lookupKey, fullPath});
                         folderRecursivePath.put(lookupKey, fullPath);
                     }
 
@@ -624,11 +699,13 @@ public class PackageBuilder {
 
                 folderRecursivePath.put(lookupKey, "unfiled$public");
                 return "unfiled$public";
+
             }
 
             // run the query
         } catch (ConnectionException ex) {
-            Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(PackageBuilder.class
+                    .getName()).log(Level.SEVERE, null, ex);
             return "RecordLookupError";
 
         }
@@ -640,7 +717,7 @@ public class PackageBuilder {
 
     private ArrayList<FileProperties> generateFolderListToProcess(HashMap<String, InventoryItem> packageInventoryList, DescribeMetadataObject metadataType)
             throws ConnectionException {
-        logger.log(Level.FINE, metadataType.getXmlName() + " is stored in folders. Getting folder list.");
+        logger.log(Level.FINE, "{0} is stored in folders. Getting folder list.", metadataType.getXmlName());
         final ArrayList<FileProperties> foldersToProcess = new ArrayList<>();
         final ListMetadataQuery query = new ListMetadataQuery();
         // stupid hack for emailtemplate folder name
@@ -652,6 +729,8 @@ public class PackageBuilder {
         }
 
         boolean skipManageableStateInstalled_r = false;
+        boolean includeAllVersions_r = false;
+
         skipManageableStateInstalled_r = parameters.containsKey(type + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) ? isParamTrue(type + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) : this.skipManageableStateInstalled;
 
         ArrayList<Pattern> skipPatterns_d = initializePatternArray(parameters.getProperty(PbProperties.SKIPPATTERNS));
@@ -669,11 +748,12 @@ public class PackageBuilder {
         forceIncludePatterns_r = parameters.containsKey(type + "." + PbProperties.FORCEINCLUDEPATTERNS) ? initializePatternArray(parameters.getProperty(type + "." + PbProperties.FORCEINCLUDEPATTERNS)) : forceIncludePatterns_d;
 
         String activeSkipPattern = "\n*\n************************";
-        activeSkipPattern += "\n* skippatterns                   {" + skipPatterns_r.size() + "} " + skipPatterns_r;
-        activeSkipPattern += "\n* includepatterns                {" + includePatterns_r.size() + "} " + includePatterns_r;
-        activeSkipPattern += "\n* forceincludepatterns           {" + forceIncludePatterns_r.size() + "} " + forceIncludePatterns_r;
+        activeSkipPattern += "\n* " + type + ".skippatterns                   {" + skipPatterns_r.size() + "} " + skipPatterns_r;
+        activeSkipPattern += "\n* " + type + ".includepatterns                {" + includePatterns_r.size() + "} " + includePatterns_r;
+        activeSkipPattern += "\n* " + type + ".forceincludepatterns           {" + forceIncludePatterns_r.size() + "} " + forceIncludePatterns_r;
+
         activeSkipPattern += "\n************************";
-        logger.log(Level.INFO, "\n***************************\n* Skip check\n* \n* " + type + activeSkipPattern);
+        logger.log(Level.INFO, "\n***************************\n* Skip check\n* \n* {0}{1}", new Object[]{type, activeSkipPattern});
 
         query.setType(type);
         final FileProperties[] srcMd = this.srcMetadataConnection.listMetadata(
@@ -684,36 +764,36 @@ public class PackageBuilder {
 
                 // add folder to final inventory
                 if (skipManageableStateInstalled_r && n.getManageableState().name().equals("installed")) {
-                    logger.log(Level.INFO, "Skipping folder " + n.getFullName() + " because it is managed.");
+                    logger.log(Level.INFO, "Skipping folder {0} because it is managed.", n.getFullName());
                 } else {
 //                    String tempArray[] = { n.getFullName()};
 //                    ReadResult rr =  this.srcMetadataConnection.readMetadata(type, tempArray);
                     boolean itemSkipped = false;
                     boolean forceInclude = false;
 
-                    if (!forceInclude && !itemSkipped && forceIncludePatterns_r.size() > 0) {
+                    if (!forceInclude && !itemSkipped && !forceIncludePatterns_r.isEmpty()) {
                         for (Pattern p : forceIncludePatterns_r) {
                             final Matcher m = p.matcher(n.getFullName());
                             if (m.matches()) {
-                                logger.log(Level.FINE, "forceincludepatterns: " + p.pattern() + " matches the metadata item: " + n.getFullName() + ", item will be skipped.");
+                                logger.log(Level.FINE, "forceincludepatterns: {0} matches the metadata item: {1}, item will be skipped.", new Object[]{p.pattern(), n.getFullName()});
                                 forceInclude = true;
                                 break;
                             }
                         }
                     }
 
-                    if (!forceInclude && !itemSkipped && skipPatterns_r.size() > 0) {
+                    if (!forceInclude && !itemSkipped && !skipPatterns_r.isEmpty()) {
                         for (Pattern p : skipPatterns_r) {
                             final Matcher m = p.matcher(n.getFullName());
                             if (m.matches()) {
-                                logger.log(Level.FINE, "skippatterns: " + p.pattern() + " matches the metadata item: " + n.getFullName() + ", item will be skipped.");
+                                logger.log(Level.FINE, "skippatterns: {0} matches the metadata item: {1}, item will be skipped.", new Object[]{p.pattern(), n.getFullName()});
                                 itemSkipped = true;
                                 break;
                             }
                         }
                     }
 
-                    if (!forceInclude && !itemSkipped && includePatterns_r.size() > 0) {
+                    if (!forceInclude && !itemSkipped && !includePatterns_r.isEmpty()) {
                         boolean matchesPattern = false;
                         for (Pattern p : includePatterns_r) {
                             final Matcher m = p.matcher(n.getFullName());
@@ -723,7 +803,7 @@ public class PackageBuilder {
                             }
                         }
                         if (!matchesPattern) {
-                            logger.log(Level.FINE, "includepatterns (no match): " + type + " does not match the metadata item: " + n.getFullName() + ", item will be skipped");
+                            logger.log(Level.FINE, "includepatterns (no match): {0} does not match the metadata item: {1}, item will be skipped", new Object[]{type, n.getFullName()});
                             itemSkipped = true;
                         }
                     }
@@ -735,13 +815,13 @@ public class PackageBuilder {
 
                         packageInventoryList.put(n.getFullName(), new InventoryItem(n.getFullName(), n, metadataType, true, fullPath));
 
-                        logger.log(Level.FINER, "Adding folder " + n.getFullName() + " to inventory. Path: " + n.getFileName() + " fullPath " + fullPath);
+                        logger.log(Level.FINER, "Adding folder {0} to inventory. Path: {1} fullPath {2}", new Object[]{n.getFullName(), n.getFileName(), fullPath});
                     }
                 }
 
                 itemCount++;
             }
-            logger.log(Level.FINE, foldersToProcess.size() + " folders found. Adding to retrieve list.");
+            logger.log(Level.FINE, "{0} folders found. Adding to retrieve list.", foldersToProcess.size());
         }
         return foldersToProcess;
     }
@@ -773,8 +853,7 @@ public class PackageBuilder {
         if (!Utils.checkIsDirectory(basedir)) {
             // log error and exit
 
-            logger.log(Level.INFO, "Base directory parameter provided: " + basedir
-                    + " invalid or is not a directory, cannot continue.");
+            logger.log(Level.INFO, "Base directory parameter provided: {0} invalid or is not a directory, cannot continue.", basedir);
             System.exit(1);
         }
 
@@ -798,7 +877,7 @@ public class PackageBuilder {
                 final int separatorLocation = s.indexOf(File.separator);
 
                 if (separatorLocation == -1) {
-                    logger.log(Level.INFO, "No folder in: " + s + ",skipping...");
+                    logger.log(Level.INFO, "No folder in: {0},skipping...", s);
                     continue;
                 }
 
@@ -822,8 +901,7 @@ public class PackageBuilder {
                 }
 
                 if (mdType == null) {
-                    logger.log(Level.INFO, "Couldn't find type mapping for item : " + mdType + " : " + filename + ", original path: "
-                            + s + ",skipping...");
+                    logger.log(Level.INFO, "Couldn''t find type mapping for item : {0} : {1}, original path: {2},skipping...", new Object[]{mdType, filename, s});
                     continue;
                 }
 
@@ -832,7 +910,7 @@ public class PackageBuilder {
                 if (typeInventory == null) {
                     typeInventory = new HashSet<>();
                     myInventory.put(mdType, typeInventory);
-                    logger.log(Level.INFO, "Created inventory record for type: " + mdType);
+                    logger.log(Level.INFO, "Created inventory record for type: {0}", mdType);
                 }
 
                 // check if there is a folder in the filename and it's aura -
@@ -840,7 +918,7 @@ public class PackageBuilder {
                 if (filename.contains("/") && mdType.equals("AuraDefinitionBundle")) {
                     final String subFoldername = filename.substring(0, filename.indexOf("/"));
                     typeInventory.add(new InventoryItem(subFoldername, null, mdType));
-                    logger.log(Level.FINE, "Added: " + mdType + " : " + subFoldername + ", to inventory, original path: " + s);
+                    logger.log(Level.FINE, "Added: {0} : {1}, to inventory, original path: {2}", new Object[]{mdType, subFoldername, s});
                     continue;
                 }
 
@@ -852,12 +930,12 @@ public class PackageBuilder {
                 }
 
                 typeInventory.add(new InventoryItem(filename, null, mdType));
-                logger.log(Level.FINE, "Added: " + mdType + " : " + filename + ", to inventory, original path: " + s);
+                logger.log(Level.FINE, "Added: {0} : {1}, to inventory, original path: {2}", new Object[]{mdType, filename, s});
 
                 // convert myinventory to the right return type
             } catch (final IOException e) {
                 // Something bad happened
-                logger.log(Level.INFO, "Something bad happened on file: " + s + ", skipping...");
+                logger.log(Level.INFO, "Something bad happened on file: {0}, skipping...", s);
             }
 
         }
@@ -880,6 +958,7 @@ public class PackageBuilder {
 
         // Initialize the metadata connection we're going to need
         this.srcUrl = parameters.getProperty(PbProperties.SERVERURL) + PbProperties.URLBASE + this.myApiVersion;
+        this.srcUrlBase = parameters.getProperty(PbProperties.SERVERURL);
         this.srcUser = parameters.getProperty(PbProperties.USERNAME);
         this.srcPwd = parameters.getProperty(PbProperties.PASSWORD);
         this.srcToken = parameters.getProperty(PbProperties.TOKEN);
@@ -894,10 +973,10 @@ public class PackageBuilder {
         final ArrayList<String> workToDo = new ArrayList<>(this.getTypesToFetch());
         Collections.sort(workToDo);
 
-        logger.log(Level.INFO, "Will fetch: " + String.join(", ", workToDo) + " from: " + this.srcUrl);
-        logger.log(Level.FINE, "Using user: " + this.srcUser + " skipping: " + this.skipItems);
+        logger.log(Level.INFO, "Will fetch: {0} from: {1}", new Object[]{String.join(", ", workToDo), this.srcUrl});
+        logger.log(Level.FINE, "Using user: {0} skipping: {1}", new Object[]{this.srcUser, this.skipItems});
 
-        logger.log(Level.INFO, "target directory: " + this.targetDir);
+        logger.log(Level.INFO, "target directory: {0}", this.targetDir);
 
         Utils.checkDir(this.targetDir);
 
@@ -908,11 +987,11 @@ public class PackageBuilder {
             final String mdType = i.next();
 
             logger.log(Level.FINE, "*********************************************");
-            logger.log(Level.INFO, "Processing type " + counter + " out of " + workToDo.size() + ": " + mdType + (Level.INFO == thisLogLevel ? "\\" : ""));
+            logger.log(Level.INFO, "Processing type {0} out of {1}: {2}{3}", new Object[]{counter, workToDo.size(), mdType, Level.INFO == thisLogLevel ? "\\" : ""});
 
             final ArrayList<InventoryItem> mdTypeItemList = new ArrayList<>(this.fetchMetadataType(mdType).values());
             Collections.sort(mdTypeItemList, (o1, o2) -> o1.getItemName().compareTo(o2.getItemName()));
-            
+
             //WaveRecipe values need to also be added as a WaveDataflow. 
             //There will be extra entries in the array, but those get ignored when skip check runs. 
             if (mdType.equalsIgnoreCase("WaveRecipe")) {
@@ -924,7 +1003,7 @@ public class PackageBuilder {
                     inventory.put("WaveDataflow", mdTypeItemList);
                 }
             }
-            
+
             // When checkign WaveDataflow, ensure that we concatenate with any existing values added by the WaveRecipe override above. 
             if (mdType.equalsIgnoreCase("WaveDataflow")) {
                 if (inventory.containsKey("WaveDataflow")) {
@@ -938,8 +1017,8 @@ public class PackageBuilder {
                 inventory.put(mdType, mdTypeItemList);
             }
 
-            logger.log(Level.INFO, " items: " + mdTypeItemList.size());
-            logger.log(Level.FINE, "Finished processing: " + mdType);
+            logger.log(Level.INFO, " items: {0}", mdTypeItemList.size());
+            logger.log(Level.FINE, "Finished processing: {0}", mdType);
             logger.log(Level.FINE, "*********************************************");
             logger.log(Level.FINE, "");
 
@@ -1000,11 +1079,10 @@ public class PackageBuilder {
         final ArrayList<String> typesFound = new ArrayList<>(this.existingTypes);
         Collections.sort(typesFound);
 
-        logger.log(Level.INFO, "Types found in org: " + typesFound.toString());
+        logger.log(Level.INFO, "Types found in org: {0}", typesFound.toString());
 
-        logger.log(Level.INFO, "Total items in package.xml: " + (pkgItemCount - skipCount));
-        logger.log(Level.INFO, "Total items overall: " + pkgItemCount + ", items skipped: " + skipCount
-                + " (excludes count of items in type where entire type was skipped)");
+        logger.log(Level.INFO, "Total items in package.xml: {0}", pkgItemCount - skipCount);
+        logger.log(Level.INFO, "Total items overall: {0}, items skipped: {1} (excludes count of items in type where entire type was skipped)", new Object[]{pkgItemCount, skipCount});
 
         return files;
 
@@ -1029,7 +1107,7 @@ public class PackageBuilder {
                 totalInventory.put(key, item);
                 return key;
             }).forEachOrdered(key -> {
-                logger.log(Level.FINE, "Added: " + key + " to git inventory");
+                logger.log(Level.FINE, "Added: {0} to git inventory", key);
             });
         });
 
@@ -1143,10 +1221,13 @@ public class PackageBuilder {
                 }
             }
 
-            // check API version - in 45+, remove FlowDefinition
-//            if (Double.valueOf(parameters.getProperty(PbProperties.APIVERSION)) >= 45) {
-//                typesToFetch.remove("FlowDefinition");
-//            }
+            //FlowDefinition is obsolete
+            typesToFetch.remove("FlowDefinition");
+            //These throw errors
+            typesToFetch.remove("GlobalValueSetTranslation");
+            typesToFetch.remove("SearchCustomization");
+            typesToFetch.remove("IdentityVerificationProc");
+
         }
         if (typesToFetch.contains("WaveRecipe")) {
             typesToFetch.add("WaveDataflow");
@@ -1163,8 +1244,6 @@ public class PackageBuilder {
     private int handleSkippingItems(final HashMap<String, ArrayList<InventoryItem>> myFile) {
 
         int skipCount = 0;
-        int lastSkipCount = 0;
-        int lastUnskippedItemCount = 0;
         int unskippedItemCount = 0;
 
         SimpleDateFormat format1 = new SimpleDateFormat("yyyy-MM-dd");
@@ -1197,31 +1276,34 @@ public class PackageBuilder {
         boolean includeNullDate_r = false;
         boolean limitToActive_r = false;
         boolean verifyMetadataRead_r = false;
+        boolean includeallversions_r = false;
 
         if (fromDateString != null && fromDateString.length() >= 8) {
             try {
-                fromDate = Date.valueOf(fromDateString);
+                fromDate = java.sql.Date.valueOf(fromDateString);
             } catch (IllegalArgumentException e) {
-                logger.log(Level.FINE, "FromDate value: " + fromDateString + " cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without FromDate parameter.");
+                logger.log(Level.FINE, "FromDate value: {0} cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without FromDate parameter.", fromDateString);
             }
         }
 
         if (toDateString != null && toDateString.length() >= 8) {
             try {
-                toDate = Date.valueOf(toDateString);
+                toDate = java.sql.Date.valueOf(toDateString);
             } catch (IllegalArgumentException e) {
-                logger.log(Level.FINE, "ToDate value: " + toDateString + " cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without ToDate parameter.");
+                logger.log(Level.FINE, "ToDate value: {0} cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without ToDate parameter.", toDateString);
             }
         }
-        SortedSet<String> sortedSet = new TreeSet<String>(myFile.keySet());
-        for (final String mdType : sortedSet) { //Loop through Metadata Types a-z
-            lastSkipCount = skipCount;
-            lastUnskippedItemCount = unskippedItemCount;
+        SortedSet<String> sortedSet = new TreeSet<>(myFile.keySet());
+        for (final String mdType : sortedSet) {
+            int mdTypeSkipCount = 0;
+            int mdTypeUnskipCount = 0;
 
             skipManageableStateInstalled_r = parameters.containsKey(mdType + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) ? isParamTrue(mdType + "." + PbProperties.SKIPMANAGEABLESTATEINSTALLED) : this.skipManageableStateInstalled;
             includeNullDate_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDENULLDATE) ? isParamTrue(mdType + "." + PbProperties.INCLUDENULLDATE) : this.includeNullDate;
             limitToActive_r = parameters.containsKey(mdType + "." + PbProperties.LIMITTOACTIVE) ? isParamTrue(mdType + "." + PbProperties.LIMITTOACTIVE) : false;
             verifyMetadataRead_r = parameters.containsKey(mdType + "." + PbProperties.VERIFYMETADATAREAD) ? isParamTrue(mdType + "." + PbProperties.VERIFYMETADATAREAD) : this.verifyMetadataRead;
+
+            includeallversions_r = parameters.containsKey(mdType + "." + PbProperties.INCLUDEALLVERSIONS) ? isParamTrue(mdType + "." + PbProperties.INCLUDEALLVERSIONS) : false;
 
             //Setup patterns for metadata types:
             skipPatterns_r = parameters.containsKey(mdType + "." + PbProperties.SKIPPATTERNS) ? initializePatternArray(parameters.getProperty(mdType + "." + PbProperties.SKIPPATTERNS)) : skipPatterns_d;
@@ -1235,34 +1317,41 @@ public class PackageBuilder {
 
             //Type specific overrides
             if (mdType.equals("InstalledPackage")) {
-                logger.log(Level.INFO, "Setting override for " + mdType + " skipmanagedstateinstalled = false");
+                logger.log(Level.INFO, "Setting override for {0} skipmanagedstateinstalled = false", mdType);
                 skipManageableStateInstalled_r = false;
-                logger.log(Level.INFO, "Setting override for " + mdType + " verifymetadataread = true");
+                logger.log(Level.INFO, "Setting override for {0} verifymetadataread = true", mdType);
                 verifyMetadataRead_r = true;
             }
-            if (mdType.equals("Flow") && !verifyMetadataRead_r) {
-                logger.log(Level.INFO, "Setting override for " + mdType + " verifymetadataread = true");
-                verifyMetadataRead_r = true;
-            }
+//            if ((mdType.equals("Flow") || mdType.equals("StandardValueSet")) && !verifyMetadataRead_r) {
+//                logger.log(Level.INFO, "Setting override for {0} verifymetadataread = true", mdType);
+//                verifyMetadataRead_r = true;
+//            }
 
+            if (includeallversions_r && "Flow".equalsIgnoreCase(mdType)) {
+                //We must turn off limit to active and verify metadata read when backing up all versions of Flows. 
+                limitToActive_r = false;
+                verifyMetadataRead_r = false;
+                logger.log(Level.INFO, "Setting override for {0} verifymetadataread = false and limittoactive = false due to " + PbProperties.INCLUDEALLVERSIONS + " being set to true", mdType);
+            }
             String activeSkipPattern = "\n*\n************************";
-            activeSkipPattern += "\n* skipmanagedstateinstalled       " + skipManageableStateInstalled_r;
+            activeSkipPattern += "\n* " + mdType + ".skipmanagedstateinstalled       " + skipManageableStateInstalled_r;
 
             if (mdType.equals("Flow")) {
-                activeSkipPattern += "\n* limittoactive                   " + limitToActive_r;
+                activeSkipPattern += "\n* " + mdType + ".limittoactive                   " + limitToActive_r;
             }
-            activeSkipPattern += "\n* includenulldate                 " + includeNullDate_r;
-            activeSkipPattern += "\n* verifymetadataread              " + verifyMetadataRead_r;
-            activeSkipPattern += "\n* skippatterns                   {" + skipPatterns_r.size() + "} " + skipPatterns_r;
-            activeSkipPattern += "\n* includepatterns                {" + includePatterns_r.size() + "} " + includePatterns_r;
-            activeSkipPattern += "\n* metadatasubtypeincludepattern  {" + metadataSubTypeIncludePatterns_r.size() + "} " + metadataSubTypeIncludePatterns_r;
-            activeSkipPattern += "\n* forceincludepatterns           {" + forceIncludePatterns_r.size() + "} " + forceIncludePatterns_r;
-            activeSkipPattern += "\n* skipemail                      {" + skipEmail_r.size() + "} " + skipEmail_r;
-            activeSkipPattern += "\n* includeemail                   {" + includeEmail_r.size() + "} " + includeEmail_r;
-            activeSkipPattern += "\n* skipusername                   {" + skipUsername_r.size() + "} " + skipUsername_r;
-            activeSkipPattern += "\n* includeusername                {" + includeUsername_r.size() + "} " + includeUsername_r;
+            activeSkipPattern += "\n* " + mdType + ".includenulldate                 " + includeNullDate_r;
+            activeSkipPattern += "\n* " + mdType + ".includeallversions              " + includeallversions_r;
+            activeSkipPattern += "\n* " + mdType + ".verifymetadataread              " + verifyMetadataRead_r;
+            activeSkipPattern += "\n* " + mdType + ".skippatterns                   {" + skipPatterns_r.size() + "} " + skipPatterns_r;
+            activeSkipPattern += "\n* " + mdType + ".includepatterns                {" + includePatterns_r.size() + "} " + includePatterns_r;
+            activeSkipPattern += "\n* " + mdType + ".metadatasubtypeincludepattern  {" + metadataSubTypeIncludePatterns_r.size() + "} " + metadataSubTypeIncludePatterns_r;
+            activeSkipPattern += "\n* " + mdType + ".forceincludepatterns           {" + forceIncludePatterns_r.size() + "} " + forceIncludePatterns_r;
+            activeSkipPattern += "\n* " + mdType + ".skipemail                      {" + skipEmail_r.size() + "} " + skipEmail_r;
+            activeSkipPattern += "\n* " + mdType + ".includeemail                   {" + includeEmail_r.size() + "} " + includeEmail_r;
+            activeSkipPattern += "\n* " + mdType + ".skipusername                   {" + skipUsername_r.size() + "} " + skipUsername_r;
+            activeSkipPattern += "\n* " + mdType + ".includeusername                {" + includeUsername_r.size() + "} " + includeUsername_r;
             activeSkipPattern += "\n************************";
-            logger.log(Level.INFO, "\n***************************\n* Skip check\n* \n* " + mdType + activeSkipPattern);
+            logger.log(Level.INFO, "\n***************************\n* Skip check\n* \n* {0}{1}", new Object[]{mdType, activeSkipPattern});
 
             boolean ignoreNullDate;
             final ArrayList<InventoryItem> items = myFile.get(mdType);
@@ -1274,31 +1363,31 @@ public class PackageBuilder {
                 ignoreNullDate = includeNullDate_r;
                 boolean itemSkipped = false;
                 boolean forceInclude = false;
-                logger.log(Level.FINEST, "Skip pattern check on: " + metadataObjectName);
+                logger.log(Level.FINEST, "\nSkip pattern check on: {0}", metadataObjectName);
 
                 for (Pattern p : forceIncludePatterns_r) {
                     final Matcher m = p.matcher(metadataObjectName);
                     if (m.matches()) {
-                        logger.log(Level.FINE, "forceincludepatterns : " + p.pattern() + " matches the metadata item: " + metadataObjectName + ", item will be included.");
+                        logger.log(Level.FINE, "\nforceincludepatterns : {0} matches the metadata item: {1}, item will be included.", new Object[]{p.pattern(), metadataObjectName});
                         forceInclude = true;
                         break;
                     }
                 }
                 if (!forceInclude) {
 
-                    if (!itemSkipped && skipPatterns_r.size() > 0) {
+                    if (!itemSkipped && !skipPatterns_r.isEmpty()) {
                         for (Pattern p : skipPatterns_r) {
                             final Matcher m = p.matcher(metadataObjectName);
                             if (m.matches()) {
-                                logger.log(Level.FINE, "skippatterns: " + p.pattern() + " matches the metadata item: " + metadataObjectName + ", item will be skipped.");
-                                skipCount++;
+                                logger.log(Level.FINE, "\nskippatterns: {0} matches the metadata item: {1}, item will be skipped.", new Object[]{p.pattern(), metadataObjectName});
+
                                 itemSkipped = true;
                                 break;
                             }
                         }
                     }
 
-                    if (!itemSkipped && includePatterns_r.size() > 0) {
+                    if (!itemSkipped && !includePatterns_r.isEmpty()) {
                         boolean matchesPattern = false;
                         for (Pattern p : includePatterns_r) {
                             final Matcher m = p.matcher(metadataObjectName);
@@ -1308,24 +1397,23 @@ public class PackageBuilder {
                             }
                         }
                         if (!matchesPattern) {
-                            logger.log(Level.FINE, "includepatterns (no match): " + metadataObjectName + " does not match any item name include patterns, item will be skipped.");
-                            skipCount++;
+                            logger.log(Level.FINE, "\nincludepatterns (no match): {0} does not match any item name include patterns, item will be skipped.", metadataObjectName);
+
                             itemSkipped = true;
                         }
                     }
-                    if (!itemSkipped && skipUsername_r.size() > 0) {
+                    if (!itemSkipped && !skipUsername_r.isEmpty()) {
                         for (Pattern p : skipUsername_r) {
                             final Matcher m = p.matcher(mdItem.getLastModifiedByName());
                             if (m.matches()) {
-                                logger.log(Level.FINE, "skipusername: " + p.pattern() + " matches the metadata item: " + metadataObjectName
-                                        + " (" + mdItem.getLastModifiedByName() + "), item will be skipped.");
-                                skipCount++;
+                                logger.log(Level.FINE, "\nskipusername: {0} matches the metadata item: {1} ({2}), item will be skipped.", new Object[]{p.pattern(), metadataObjectName, mdItem.getLastModifiedByName()});
+
                                 itemSkipped = true;
                                 break;
                             }
                         }
                     }
-                    if (!itemSkipped && includeUsername_r.size() > 0) {
+                    if (!itemSkipped && !includeUsername_r.isEmpty()) {
                         boolean matchesPattern = false;
                         String lastModUsername = mdItem.getLastModifiedByUsername() == null ? "null" : mdItem.getLastModifiedByUsername();
                         for (Pattern p : includeUsername_r) {
@@ -1335,27 +1423,25 @@ public class PackageBuilder {
                             }
                         }
                         if (!matchesPattern) {
-                            logger.log(Level.FINE, "includeusername (no match): " + metadataObjectName + " (" + mdItem.getLastModifiedByName()
-                                    + ") does not match any user name include patterns, item will be skipped.");
-                            skipCount++;
+                            logger.log(Level.FINE, "\nincludeusername (no match): {0} ({1}) does not match any user name include patterns, item will be skipped.", new Object[]{metadataObjectName, mdItem.getLastModifiedByName()});
+
                             itemSkipped = true;
                         }
                     }
-                    if (!itemSkipped && skipEmail_r.size() > 0) {
+                    if (!itemSkipped && !skipEmail_r.isEmpty()) {
                         String lastModEmail = mdItem.getLastModifiedByEmail() == null ? "null" : mdItem.getLastModifiedByEmail();
                         for (Pattern p : skipEmail_r) {
 
                             final Matcher m = p.matcher(lastModEmail);
                             if (m.matches()) {
-                                logger.log(Level.FINE, "skipemail: " + p.pattern() + " matches the metadata item: " + metadataObjectName
-                                        + " (" + mdItem.getLastModifiedByEmail() + "), item will be skipped.");
-                                skipCount++;
+                                logger.log(Level.FINE, "\nskipemail: {0} matches the metadata item: {1} ({2}), item will be skipped.", new Object[]{p.pattern(), metadataObjectName, mdItem.getLastModifiedByEmail()});
+
                                 itemSkipped = true;
                                 break;
                             }
                         }
                     }
-                    if (!itemSkipped && includeEmail_r.size() > 0) {
+                    if (!itemSkipped && !includeEmail_r.isEmpty()) {
                         boolean matchesPattern = false;
                         for (Pattern p : includeEmail_r) {
                             final Matcher m = p.matcher(mdItem.getLastModifiedByEmail());
@@ -1364,9 +1450,8 @@ public class PackageBuilder {
                             }
                         }
                         if (!matchesPattern) {
-                            logger.log(Level.FINE, "includeemail (no match): " + metadataObjectName + " (" + mdItem.getLastModifiedByEmail()
-                                    + ") does not match any email include patterns, item will be skipped.");
-                            skipCount++;
+                            logger.log(Level.FINE, "\nincludeemail (no match): {0} ({1}) does not match any email include patterns, item will be skipped.", new Object[]{metadataObjectName, mdItem.getLastModifiedByEmail()});
+
                             itemSkipped = true;
                         }
                     }
@@ -1374,24 +1459,22 @@ public class PackageBuilder {
                     // check against dates now, if defined
                     Calendar itemLastModified = mdItem.getLastModifiedDate();
                     if (ignoreNullDate && (itemLastModified == null || itemLastModified.getTimeInMillis() == 0)) {
-                        logger.log(Level.FINE, "Item lacks lastModifiedDate but was included in the includepattern. Overriding and adding. ");
+                        logger.log(Level.FINE, "\nItem lacks lastModifiedDate but was included in the includepattern. Overriding and adding. ");
                     } else {
                         if (!itemSkipped && fromDate != null) {
 
                             if (itemLastModified == null || fromDate.after(itemLastModified.getTime())) {
-                                skipCount++;
+
                                 itemSkipped = true;
-                                logger.log(Level.FINE, "fromdate: " + metadataObjectName + " last modified (" + (itemLastModified == null || itemLastModified.getTimeInMillis() == 0 ? "null" : format1.format(itemLastModified.getTime())) + ") before provided FromDate ("
-                                        + fromDateString + "), item will be skipped.");
+                                logger.log(Level.FINE, "fromdate: {0} last modified ({1}) before provided FromDate ({2}), item will be skipped.", new Object[]{metadataObjectName, itemLastModified == null || itemLastModified.getTimeInMillis() == 0 ? "null" : format1.format(itemLastModified.getTime()), fromDateString});
                             }
 
                         }
                         if (!itemSkipped && toDate != null) {
                             if (itemLastModified == null || toDate.before(itemLastModified.getTime())) {
-                                skipCount++;
+
                                 itemSkipped = true;
-                                logger.log(Level.FINE, "todate: " + metadataObjectName + " last modified (" + (itemLastModified == null || itemLastModified.getTimeInMillis() == 0 ? "null" : format1.format(itemLastModified.getTime())) + ") after provided ToDate ("
-                                        + toDateString + "), item will be skipped.");
+                                logger.log(Level.FINE, "todate: {0} last modified ({1}) after provided ToDate ({2}), item will be skipped.", new Object[]{metadataObjectName, itemLastModified == null || itemLastModified.getTimeInMillis() == 0 ? "null" : format1.format(itemLastModified.getTime()), toDateString});
                             }
 
                         }
@@ -1401,76 +1484,79 @@ public class PackageBuilder {
                     if (!itemSkipped && mdItem.getFileProperties() != null && skipManageableStateInstalled_r) {
                         if (mdItem.getFileProperties().getManageableState() == null || mdItem.getFileProperties().getManageableState().equals(ManageableState.installed)) {
                             itemSkipped = true;
-                            logger.log(Level.FINE, "skipmanagedstateinstalled: Skip managed package file matches the metadata item: " + metadataObjectName + ", item will be skipped.");
+                            logger.log(Level.FINE, "skipmanagedstateinstalled: Skip managed package file matches the metadata item: {0}, item will be skipped.\n", metadataObjectName);
                         }
                     }
-                    if (!itemSkipped && (verifyMetadataRead_r || metadataSubTypeIncludePatterns_r.size() > 0)) { //TODO add flag for picklist
+                    if (!itemSkipped && (verifyMetadataRead_r || !metadataSubTypeIncludePatterns_r.isEmpty())) { //TODO add flag for picklist
                         //Can't do the following check on some types:
                         String type = mdItem.getType();
                         if (!type.matches("(ApexClass|ApexTrigger|xxx)")) {
                             try {
-
+                                logger.log(Level.INFO, "Reading Metadata From Salesforce for: {0} Name: {1}", new Object[]{mdItem.getType(), mdItem.getFullName()});
                                 Metadata[] mdt = srcMetadataConnection.readMetadata(mdItem.getType(), new String[]{mdItem.getFullName()}).getRecords();
+
                                 if (mdt.length == 1 && mdt[0] != null) {
 
                                     if (mdItem.getType().equals("Flow")) {
                                         Flow flow = (Flow) mdt[0];
                                         mdItem.setStatus(flow.getStatus() == null ? "Managed" : flow.getStatus().toString());
-                                        logger.log(Level.FINE, "Flow " + metadataObjectName + " status: " + mdItem.getStatus());
+                                        logger.log(Level.INFO, "Flow {0} status: {1}", new Object[]{metadataObjectName, mdItem.getStatus()});
                                     } else if (mdItem.getType().equals("CustomField")) {
                                         CustomField cf = (CustomField) mdt[0];
                                         mdItem.setMetadataSubType(cf.getType() == null ? "Unknown" : cf.getType().toString());
-                                        logger.log(Level.FINE, "CustomField " + metadataObjectName + " Sub-Type: " + mdItem.getMetadataSubType());
+                                        logger.log(Level.FINE, "CustomField {0} Sub-Type: {1}", new Object[]{metadataObjectName, mdItem.getMetadataSubType()});
                                     }
 
                                 } else {
                                     //Can't read metadata. Skip
-                                    logger.log(Level.FINE, "verifymetadataread Metadata " + metadataObjectName + " skipped - can't read: ");
+                                    logger.log(Level.FINE, "verifymetadataread Metadata {0} skipped - can''t read: ", metadataObjectName);
                                     itemSkipped = true;
                                 }
 
                             } catch (final ConnectionException mdtLookup) {
-                                logger.log(Level.FINEST, "\nException processing: " + mdItem.getType() + " msg: " + mdtLookup.getMessage());
-                                logger.log(Level.FINE, "Metadata Lookup Error on file: " + metadataObjectName);
+                                logger.log(Level.INFO, "Exception processing: {0} msg: {1}", new Object[]{mdItem.getType(), mdtLookup.getMessage()});
+                                logger.log(Level.INFO, "Metadata Lookup Error on file: {0}", metadataObjectName);
+                                itemSkipped = true;
                             }
                         }
                     }
 
                     //Check for active (Flows) 
-                    if (limitToActive_r && !mdItem.getStatus().equals("Active")) {
+                    if (!itemSkipped && limitToActive_r && !mdItem.getStatus().equals("Active")) {
                         itemSkipped = true;
-                        logger.log(Level.INFO, "Skip non-active or managed metadata: " + metadataObjectName + ", item will be skipped.");
+                        logger.log(Level.INFO, "Skip non-active or managed metadata: {0}, item will be skipped.", metadataObjectName);
                     }
 
                     //Check for Sub Type (CustoField Types)
-                    if (!itemSkipped && metadataSubTypeIncludePatterns_r.size() > 0) {
+                    if (!itemSkipped && !metadataSubTypeIncludePatterns_r.isEmpty()) {
                         boolean matchesPattern = false;
                         String lastModUsername = mdItem.getMetadataSubType() == null ? "null" : mdItem.getMetadataSubType();
                         for (Pattern p : metadataSubTypeIncludePatterns_r) {
                             final Matcher m = p.matcher(lastModUsername);
                             if (m.matches()) {
                                 matchesPattern = true;
-                                logger.log(Level.FINEST, "Metadata Sub Type Filter MATCH: " + metadataObjectName + " (" + mdItem.getMetadataSubType()
-                                        + ") ");
+                                logger.log(Level.FINEST, "Metadata Sub Type Filter MATCH: {0} ({1}) ", new Object[]{metadataObjectName, mdItem.getMetadataSubType()});
                             }
                         }
                         if (!matchesPattern) {
-                            logger.log(Level.FINE, "Metadata Sub Type Filter (no match): " + metadataObjectName + " (" + mdItem.getMetadataSubType()
-                                    + ") does not match any user name include patterns, item will be skipped.");
-                            skipCount++;
+                            logger.log(Level.FINE, "Metadata Sub Type Filter (no match): {0} ({1}) does not match any user name include patterns, item will be skipped.", new Object[]{metadataObjectName, mdItem.getMetadataSubType()});
+
                             itemSkipped = true;
                         }
                     }
 
                 } //End forceInclude check
                 if (itemSkipped) {
+                    skipCount++;
+                    mdTypeSkipCount++;
                     i.remove();
                 } else {
                     unskippedItemCount++;
+                    mdTypeUnskipCount++;
                 }
 
             }
-            logger.log(Level.INFO, "Summary (included/total) " + mdType + ": " + (unskippedItemCount - lastUnskippedItemCount) + "/" + ((skipCount - lastSkipCount) + (unskippedItemCount - lastUnskippedItemCount)) + "\n\n\n");
+            logger.log(Level.INFO, "\nSummary (included/total) {0}: {1}/{2}\n\n\n", new Object[]{mdType, mdTypeUnskipCount, mdTypeSkipCount + mdTypeUnskipCount});
         }
 
         return skipCount;
@@ -1520,6 +1606,7 @@ public class PackageBuilder {
         for (final String mdName : myFile.keySet()) {
             for (final InventoryItem i : myFile.get(mdName)) {
                 userIDs.add(i.getLastModifiedById());
+                userIDs.add(i.getCreatedById());
             }
         }
 
@@ -1537,15 +1624,15 @@ public class PackageBuilder {
 
         final String query = queryStart + queryMid + queryEnd;
 
-        logger.log(Level.INFO, "Looking for emails for " + userIDs.size() + " users.");
-        logger.log(Level.FINE, "Query: " + query);
+        logger.log(Level.INFO, "Looking for emails for {0} users.", userIDs.size());
+        logger.log(Level.FINE, "Query: {0}", query);
 
         // run the query
         QueryResult qResult = this.srcPartnerConnection.query(query);
 
         boolean done = false;
         if (qResult.getSize() > 0) {
-            logger.log(Level.FINE, "Logged-in user can see a total of " + qResult.getSize() + " contact records.");
+            logger.log(Level.FINE, "Logged-in user can see a total of {0} User records.", qResult.getSize());
             while (!done) {
                 final SObject[] records = qResult.getRecords();
                 for (final SObject o : records) {
@@ -1568,17 +1655,25 @@ public class PackageBuilder {
         // now run through the InventoryItems again and update user data
         for (final String mdName : myFile.keySet()) {
             for (final InventoryItem i : myFile.get(mdName)) {
-                final HashMap<String, String> userMap = usersBySalesforceID.get(i.getLastModifiedById());
-                if (userMap != null) {
-                    i.setLastModifiedByEmail(userMap.get("Email"));
-                    i.setLastModifiedByUsername(userMap.get("Username"));
+                final HashMap<String, String> lastUpdUser = usersBySalesforceID.get(i.getLastModifiedById());
+                final HashMap<String, String> createdByUser = usersBySalesforceID.get(i.getCreatedById());
+                
+                if (lastUpdUser != null) {
+                    i.setLastModifiedByEmail(lastUpdUser.get("Email"));
+                    i.setLastModifiedByUsername(lastUpdUser.get("Username"));
+                    i.getFp().setLastModifiedByName(lastUpdUser.get("Name")); //Add missing names from Flow Versions. 
                 } else {
                     i.setLastModifiedByEmail("null");
                     i.setLastModifiedByUsername("null");
                 }
+                
+                if (createdByUser != null) {
+                    i.getFp().setCreatedByName(createdByUser.get("Name")); //Add missing names from Flow Versions. 
+                }
 
             }
         }
+
 
     }
 

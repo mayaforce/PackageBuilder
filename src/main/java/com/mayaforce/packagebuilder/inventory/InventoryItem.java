@@ -275,6 +275,9 @@ public class InventoryItem {
         this.itemName = i;
         this.isFolder = false;
         this.folderName = folderName;
+        if (folderName.equalsIgnoreCase("standardValueSets")){
+            this.fullNameAndDirOverride = i;
+        }
         this.describe = null;
         this.typeOverride = type;
     }

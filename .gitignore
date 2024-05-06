@@ -18,3 +18,4 @@ profilecompare
 /properties/build.properties
 /properties/packagebuilder.sta*
 /properties/connection.properties
+/src/main/java/com/mayaforce/packagebuilder/StandardValueSets.txt.bak

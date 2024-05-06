@@ -28,6 +28,7 @@ public class PbProperties {
     public static final String INCLUDEUSERNAME = "includeusername";
     public static final String SERVERURL = "sf.serverurl";
     public static final String URLBASE = "/services/Soap/u/";
+    public static final String RESTURLBASE = "/services/data/u/";
     public static final String GITCOMMIT = "gitcommit";
     public static final String UNZIP = "unzip";
     public static final String BASEDIRECTORY = "basedirectory";
@@ -61,4 +62,5 @@ public class PbProperties {
     public static final String VERIFYMETADATAREAD = "verifymetadataread"; // forces a read check on every item of metadata found. Not recommended for production use. 
     public static final String METADATASUBTYPEINCLUDEPATTERN = "metadatasubtypeincludepattern";
     public static final String FORCEINCLUDENAMES = "forceincludenames";
+    public static final String INCLUDEALLVERSIONS = "includeallversions"; //For Flow backup
 }
