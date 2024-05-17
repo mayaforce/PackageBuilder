@@ -51,6 +51,8 @@ import com.mayaforce.packagebuilder.PersistResult.Status;
 import com.mayaforce.packagebuilder.inventory.InventoryItem;
 import com.mayaforce.migrationtoolutils.Utils;
 import com.sforce.soap.metadata.MetadataConnection;
+import com.opencsv.CSVWriter;
+import java.io.FileWriter;
 import java.util.Calendar;
 
 /**
@@ -222,43 +224,56 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
         Element version = document.createElement("version");
         version.setTextContent(String.valueOf(this.myApiVersion));
         root.appendChild(version);
-
-        for (final String mdType : mdTypes) {
-            if (theMap.get(mdType).isEmpty()) {
-                continue;
-            }
-
-            Element types = document.createElement("types");
-            root.appendChild(types);
-            Element name = document.createElement("name");
-            name.setTextContent(mdType);
-            types.appendChild(name);
-
-            for (final InventoryItem item : theMap.get(mdType)) {
-
-                Element member = document.createElement("members");
-                member.setTextContent(item.getItemName());
-
-                if (this.includeChangeData) {
-                    member.setAttribute("cd", item.getCreatedDate()== null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") :format1.format(item.getCreatedDate().getTime()));
-                    member.setAttribute("cb", String.format("%-20s", item.getCreatedByName(20)));
-                    member.setAttribute("mb", String.format("%-20s", item.getLastModifiedByName(20)));
-                    member.setAttribute("md", item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") :format1.format(item.getLastModifiedDate().getTime()));
-                    member.setAttribute("mdt", item.getType());
+        
+        try (CSVWriter csvWrite = new CSVWriter(new FileWriter(this.targetDir + "packageDotXmlInventory.csv"))) {
+            String[] header = {"MetadataType", "Name", "CreatedBy", "CreatedDate", "ModifiedBy", "ModifiedDate"};
+            csvWrite.writeNext(header);
+            
+            for (final String mdType : mdTypes) {
+                if (theMap.get(mdType).isEmpty()) {
+                    continue;
                 }
-                types.appendChild(member);
+                
+                Element types = document.createElement("types");
+                root.appendChild(types);
+                Element name = document.createElement("name");
+                name.setTextContent(mdType);
+                types.appendChild(name);
+                
+                for (final InventoryItem item : theMap.get(mdType)) {
+                    
+                    
+                    
+                    Element member = document.createElement("members");
+                    member.setTextContent(item.getItemName());
+                    String createdDate = item.getCreatedDate() == null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getCreatedDate().getTime());
+                    String modifiedDate = item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getLastModifiedDate().getTime());
+                    
+                    String[] entries = {item.getType(),item.getItemName(), item.getCreatedByName(), createdDate, item.getLastModifiedByName(), modifiedDate};
+                    csvWrite.writeNext(entries);
+                    
+                    
+                    if (this.includeChangeData) {
+                        member.setAttribute("cd", createdDate);
+                        member.setAttribute("cb", String.format("%-20s", item.getCreatedByName(20)));
+                        member.setAttribute("mb", String.format("%-20s", item.getLastModifiedByName(20)));
+                        member.setAttribute("md", modifiedDate);
+                        member.setAttribute("mdt", item.getType());
+                    }
+                    types.appendChild(member);
+                }
             }
+            
+            Transformer tf = TransformerFactory.newInstance().newTransformer();
+            tf.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+            tf.setOutputProperty(OutputKeys.INDENT, "yes");
+            tf.setOutputProperty(OutputKeys.METHOD, "xml");
+            tf.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+            Writer out = new StringWriter();
+            tf.transform(new DOMSource(document), new StreamResult(out));
+            
+            Utils.writeFile(this.targetDir + filename, out.toString());
         }
-
-        Transformer tf = TransformerFactory.newInstance().newTransformer();
-        tf.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-        tf.setOutputProperty(OutputKeys.INDENT, "yes");
-        tf.setOutputProperty(OutputKeys.METHOD, "xml");
-        tf.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-        Writer out = new StringWriter();
-        tf.transform(new DOMSource(document), new StreamResult(out));
-
-        Utils.writeFile(this.targetDir + filename, out.toString());
-        this.logger.log(Level.INFO, "Writing " + new File(this.targetDir + filename).getCanonicalPath());
+        this.logger.log(Level.INFO, "Writing {0}", new File(this.targetDir + filename).getCanonicalPath());
     }
 }

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mayaforce</groupId>
     <artifactId>packagebuilder</artifactId>
-    <version>3.9.2SFDCv60.0</version>
+    <version>3.9.3SFDCv60.0</version>
     <name>Salesforce Package Builder</name>
     <packaging>jar</packaging>
     <description>Generate package.xml files for Salesforce - API 60 enabled</description>
@@ -162,6 +162,12 @@
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpcore</artifactId>
             <version>4.4.16</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
+            <version>5.9</version>
             <type>jar</type>
         </dependency>
     </dependencies>
