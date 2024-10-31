@@ -61,8 +61,8 @@ public class GitOutputManager {
     public GitOutputManager(final Properties parameters, Logger l) {
         this.parameters = parameters;
         //        this.gitPath = new File(this.getParam(PackageBuilderCommandLine.METADATATARGETDIR, "src"));
-        this.gitPath = findGitRoot(this.getParam(PbProperties.METADATATARGETDIR, sourceFolder));
-        this.sourceDirPath = new File(this.getParam(PbProperties.METADATATARGETDIR, sourceFolder));
+        this.gitPath = findGitRoot(this.getParam(PbProperties.METADATADIR, sourceFolder));
+        this.sourceDirPath = new File(this.getParam(PbProperties.METADATADIR, sourceFolder));
         logger = l;
     }
 
@@ -122,7 +122,7 @@ public class GitOutputManager {
             deletes.addAll(status.getMissing());
             deletes.addAll(status.getRemoved());
 
-            String baseDirectory = this.getParam(PbProperties.METADATATARGETDIR, "").replace(sourceFolder, "");
+            String baseDirectory = this.getParam(PbProperties.METADATADIR, "").replace(sourceFolder, "");
 
             for (final String filename : deletes) {
                 File file = new File(baseDirectory + filename);

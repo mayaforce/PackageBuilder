@@ -84,6 +84,7 @@ public class LoginUtil {
             logger.fine("Url before: " + partnerConfig.getServiceEndpoint());
             logger.fine("New url: " + lr.getMetadataServerUrl());
             metadataConfig.setServiceEndpoint(lr.getMetadataServerUrl());
+            metadataConfig.setUsername(lr.getUserInfo().getUserName());
             partnerConfig.setSessionId(lr.getSessionId());
             metadataConfig.setSessionId(lr.getSessionId());
         }

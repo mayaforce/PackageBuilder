@@ -142,9 +142,29 @@ public class PackageBuilderCommandLine {
         //			this.parameters.put("loglevel", LOGLEVEL);
         //		}        
         // add default to current directory if no target directory given
-        if (!buildProps.containsKey(PbProperties.DESTINATION)) {
-            System.out.println("No target directory provided, will default to current directory.");
-            buildProps.put(PbProperties.DESTINATION, ".");
+
+
+        if (!buildProps.containsKey(PbProperties.BASEDIRECTORY)) {
+            System.out.println("No base directory provided, will default to current directory.");
+            buildProps.put(PbProperties.BASEDIRECTORY, ".");
+        }
+        
+        if (!buildProps.containsKey(PbProperties.MANIFESTDIRECTORY)) {
+            System.out.println("No manifest directory provided, will default to 'manifest'.");
+            buildProps.put(PbProperties.MANIFESTDIRECTORY, "manifest");
+        }
+        
+       
+        if (!buildProps.containsKey(PbProperties.ZIPDIRECTORY)) {
+            System.out.println("No zip directory provided, will default to 'zip'.");
+            buildProps.put(PbProperties.ZIPDIRECTORY, "zip");
+        }
+        
+
+        // default download target to current directory if no explicit destination provided
+        if ((buildProps.containsKey(PbProperties.GITCOMMIT) || buildProps.containsKey(PbProperties.DOWNLOAD)) && !buildProps.containsKey(PbProperties.METADATADIR)) {
+            System.out.println("No directory provided as metadata destination, will default to current directory");
+            buildProps.put(PbProperties.METADATADIR, ".");
         }
 
         // GIT needs download and changedata
@@ -154,12 +174,7 @@ public class PackageBuilderCommandLine {
             buildProps.put(PbProperties.UNZIP, "true");
         }
 
-        // default download target to current directory if no explicit destination provided
-        if ((buildProps.containsKey(PbProperties.GITCOMMIT) || buildProps.containsKey(PbProperties.DOWNLOAD)) && !buildProps.containsKey(PbProperties.METADATATARGETDIR)) {
-            System.out.println("No directory provided as download destination, will default to current directory");
-            buildProps.put(PbProperties.METADATATARGETDIR, ".");
-        }
-
+        
         // set maxitems to default value if nothing provided
         if (!buildProps.containsKey(PbProperties.MAXITEMS)) {
             //System.out.println("No maxitems parameter provided, will default to " + PackageBuilder.DEFAULT_MAXITEMSINPACKAGE + ".");
@@ -174,7 +189,7 @@ public class PackageBuilderCommandLine {
         // check that we have the minimum parameters
         // either b(asedir) and d(estinationdir)
         // or s(f_url), p(assword), u(sername)
-        if (buildProps.containsKey(PbProperties.BASEDIRECTORY) && buildProps.containsKey(PbProperties.DESTINATION)) {
+        if (buildProps.containsKey(PbProperties.BASEDIRECTORY) && buildProps.containsKey(PbProperties.MANIFESTDIRECTORY)) {
             canProceed = true;
         }
         if (buildProps.containsKey(PbProperties.ACCESSTOKEN) && buildProps.containsKey(PbProperties.SERVERURL) || (buildProps.containsKey(PbProperties.USERNAME)
@@ -215,23 +230,23 @@ public class PackageBuilderCommandLine {
 
     // add any new parameters here only
     private void setupOptions() {
-
+        setupParameter("r", PbProperties.RUNTYPE, "Run type: from_source, from_org, from_org_download", true);
         setupParameter("b", PbProperties.BUILDPROPS, "file containing org parameters (see below)", true);
         setupParameter("c", PbProperties.CONNECTPROPS, "file containing environment connection parameters. sf.username, sf.password, sf.apiversion, sf.serverurl(see below)", true);
         setupParameter("v", PbProperties.APIVERSION, "api version to use, will default to " + PbConstants.DEFAULT_API_VERSION + "\nsf.apiversion in property file", true);
         setupParameter("s", PbProperties.SERVERURL, "server URL for the org (https://login.salesforce.com) \nsf.serverurl in property file", true);
-        setupParameter("a", PbProperties.ACCESSTOKEN, "SessionId or AccessToken from an already established session. sf org details for example", true);
+        setupParameter("a", PbProperties.ACCESSTOKEN, "SessionId or AccessToken from an already established session. Run 'sf org display' from the command prompt to get your current Access Token. Please set an sf.serverurl with this parameter.", true);
         setupParameter("p", PbProperties.PASSWORD, "password for the org (t0pSecr3t) \nsf.password in property file", true);
         setupParameter("q", PbProperties.TOKEN, "token for the org (t0pSecr3t) \nsf.password in property file", true);
         setupParameter("u", PbProperties.USERNAME, "username for the org (someuser@someorg.com) \nsf.username in property file\"", true);
-        setupParameter("t", PbProperties.DESTINATION, "directory where the generated package.xml will be written", true);
-        setupParameter("m", PbProperties.METADATATARGETDIR, "Directory to download meta data source (different to where package.xml will go) to", true);
+        setupParameter("t", PbProperties.MANIFESTDIRECTORY, "directory where the generated package.xml will be written. E.g. manifest", true);
+        setupParameter("m", PbProperties.METADATADIR, "Directory to download meta data source (different to where package.xml will go) to. E.g. src ", true);
         setupParameter("o", PbProperties.LOGLEVEL, "output log level (INFO, FINE, FINER make sense) - defaults to INFO if not provided", true);
         setupParameter("d", PbProperties.DOWNLOAD, "directly download assets, removing the need for ANT or MDAPI call", false);
         setupParameter("g", PbProperties.GITCOMMIT, "commits the changes to git. Requires -d -c options", false);
         setupParameter("l", PbProperties.LOCALONLY, "Don't re-download package.zip files, but process existing ones", false);
         setupParameter("f", PbProperties.UNZIP, "unzip any retrieved package(s)", false);
-        setupParameter("w", PbProperties.BASEDIRECTORY, "base directory from which to generate package.xml", true);
+        setupParameter("w", PbProperties.BASEDIRECTORY, "base directory for work. Manifest and Metadata directories are relative to the BaseDir", true);
         setupParameter("k", PbProperties.RETAINTARGETDIR, "do not clear the metadatatargetdir provided when unzipping", false);
     }
 

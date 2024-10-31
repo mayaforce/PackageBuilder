@@ -14,23 +14,25 @@ usage: java -jar PackageBuilder.jar [-w basedirectory] [-b <parameter
  -c,--connectprops <arg>        file containing environment connection
                                 parameters. sf.username, sf.password,
                                 sf.apiversion, sf.serverurl(see below)
- -a,--sf.apiversion <arg>       api version to use, will default to 53.0
+ -v,--sf.apiversion <arg>       api version to use, will default to 62.0
                                 sf.apiversion in property file
  -s,--sf.serverurl <arg>        server URL for the org
                                 (https://login.salesforce.com)
                                 sf.serverurl in property file
  -p,--sf.password <arg>         password for the org (t0pSecr3t)
                                 sf.password in property file
- -q,--sf.token <arg>            token for the org (t0pSecr3t)
-                                sf.password in property file
+ -q,--sf.token <arg>            User's access token for the org (t0pSecr3t)
+                                sf.token in property file
+ -a,--sf.accessToken <arg>      An active session token. Used in CI/CD pipelines
+                                Not recommended to use in properties files. 
+                                Does not require a username or password to function. 
  -u,--sf.username <arg>         username for the org
                                 (someuser@someorg.com)
                                 sf.username in property file"
  -t,--destination <arg>         directory where the generated package.xml
                                 will be written
- -m,--metadatatargetdir <arg>   Directory to download meta data source
-                                (different to where package.xml will go)
-                                to
+ -m,--metadatadir <arg>         Relative directory to download meta data source
+                                (different to where package.xml will go) to
  -o,--loglevel <arg>            output log level (INFO, FINE, FINER make
                                 sense) - defaults to INFO if not provided
  -d,--download                  directly download assets, removing the
@@ -64,36 +66,61 @@ All parameters can be provided in parameter files specified with the -o paramete
 The property files use standard Java property file format, i.e. `parameter=value`. E.g.
 
 ```property
-# equivalent to -a commandline parameter
-apiversion=44.0
-# equivalent to -mi commandline parameter
-metadataitems=ApexClass, ApexComponent, ApexPage
+# equivalent to -v commandline parameter
+apiversion=62.0
 # equivalent to -s commandline parameter
 sf.serverurl=https://login.salesforce.com
 # equivalent to -u commandline parameter
 sf.username=my@user.name
 # equivalent to -p commandline parameter
 sf.password=t0ps3cr3t
-# equivalent to -sp commandline parameter
-skipItems=.*fflib_.*,.*Class:AWS.*,ApexPage.*
-# equivalent to -d commandline parameter
-targetdirectory=src
+# equivalent to -m commandline parameter
+metadatadir=src
 ```
+
+##### Metadata Type Specific Properties
+Most filtering properties can be specified by metadata type. To utilize this feature in the .properties file, prefix the property with 'MetadataType.' You may specify these properties globally and override them by metadata type. 
+
 
 #### Example: 
-
-#### Use of changedata parameter
-The changedata parameter will augment the generated package.xml file with data about who/when last changed the given metadata item. So instead of getting 
 ```
-<name>CustomField</name>
-<members>Account.Active__c</members>
-<members>Account.CustomerPriority__c</members>
+metadataitems=ApexClass,CustomObject
+skippatterns=.*__.*
+
+CustomObject.skippatterns=
+
+#####################################
+## Object Specific Patterns / Options
+#####################################
+## Patterns for Metadata Types:
+##  MetadataType.includepatterns=
+##  MetadataType.skippatterns=
+##  MetadataType.includeusername=
+##  MetadataType.skipusername=
+##  MetadataType.includeemail=
+##  MetadataType.skipemail=
+##  MetadataType.skipmanagedstateinstalled (no option, will skip managed package items)
+##  MetadataType.limittoactive (Usually for Flow objects)
+##  ## Overrides the includes, skip, and date parameters. 
+##  ## MetadataType.forceincludepatterns=
+######################################
+```
+
+
+
+
+##### Use of changedata parameter
+The changedata parameter will augment the generated package.xml file with data about who/when last changed (md, mb) the given metadata item and who/when it was created (cb, cd). So instead of getting 
+```
+<name>ApexClass</name>
+<members>CommunitiesLandingController</members>
+<members>CommunitiesLandingControllerTest</members>
 ```
 you will get
 ```
-<name>CustomField</name>
-<members lastmodified="2018-08-30T09:28:58" lastmodifiedby="Kim Galant"  lastmodifiedemail="kim.galant@salesforce.com">Account.Active__c</members>
-<members lastmodified="2018-08-30T09:28:58" lastmodifiedby="Kim Galant"  lastmodifiedemail="kim.galant@salesforce.com">Account.CustomerPriority__c</members>
+ <name>ApexClass</name>
+        <members cb="Mayaforce           " cd="2019-10-01T16:20" mb="Mayaforce           " md="2019-10-01T16:20" mdt="ApexClass">CommunitiesLandingController</members>
+        <members cb="Mayaforce           " cd="2019-10-01T16:20" mb="Mayaforce           " md="2019-10-01T16:20" mdt="ApexClass">CommunitiesLandingControllerTest</members>
 ```
-Note that this adds a lastmodified attribute which contains the last change date of that item, the name and email of the user who changed it (from the SF User table).
-If this package.xml file is used for a retrieve, Salesforce (as of API 44) will happily ignore the additional attributes. They are added to help provide additional insight about who last touched each individual item.
+Note that this adds a lastmodified attribute which contains the last change date of that item, the name of the user who changed it (from the SF User table).
+If this package.xml file is used for a retrieve, Salesforce will happily ignore the additional attributes. They are added to help provide additional insight about who last touched each individual item.

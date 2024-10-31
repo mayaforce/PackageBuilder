@@ -71,9 +71,9 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
     private final boolean downloadData;
     private final boolean unzipDownload;
     private final double myApiVersion;
-    private final String targetDir;
+    private final String destManifestDir;
     private final String metaSourceDownloadDir;
-    private final String destinationDir;
+    private final String zipFileDir;
     private final MetadataConnection metadataConnection;
     private final PersistResult result;
 
@@ -84,18 +84,18 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
     private boolean localOnly = false;
 
     public PackageAndFilePersister(final double myApiVersion,
-            final String targetDir,
+            final String destManifestDir_p,
             final String metaSourceDownloadDir,
-            final String destinationDir,
+            final String zipFileDir_p,
             final Map<String, ArrayList<InventoryItem>> theMap,
             final String filename,
             final boolean includeChangeData, final boolean download,
             final boolean unzip,
             final MetadataConnection metadataConnection) {
         this.myApiVersion = myApiVersion;
-        this.targetDir = targetDir;
+        this.destManifestDir = destManifestDir_p;
         this.metaSourceDownloadDir = metaSourceDownloadDir;
-        this.destinationDir = destinationDir;
+        this.zipFileDir = zipFileDir_p;
         this.theMap = theMap;
         this.filename = filename;
         this.includeChangeData = includeChangeData;
@@ -158,7 +158,7 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
     }
 
     private void unzipPackage() throws Exception {
-        final String zipFileNameWithPath = this.destinationDir + File.separator + zipFileName;
+        final String zipFileNameWithPath = this.zipFileDir + File.separator + zipFileName;
         zipResult = new File(zipFileNameWithPath);
 
         if (zipResult.exists()) {
@@ -174,9 +174,9 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
         this.logger.log(Level.INFO, "Asked to retrieve this package {0} from org - will do so now.", this.filename);
         myRetrieve = new OrgRetrieve(Level.FINE);
         myRetrieve.setMetadataConnection(this.metadataConnection);
-        Utils.checkDir(this.destinationDir);
-        myRetrieve.setZipFile(this.destinationDir + File.separator + zipFileName);
-        myRetrieve.setManifestFile(this.targetDir + this.filename);
+        Utils.checkDir(this.zipFileDir);
+        myRetrieve.setZipFile(this.zipFileDir + File.separator + zipFileName);
+        myRetrieve.setManifestFile(this.destManifestDir + this.filename);
         myRetrieve.setApiVersion(this.myApiVersion);
         myRetrieve.retrieveZip();
 
@@ -224,56 +224,46 @@ public class PackageAndFilePersister implements Callable<PersistResult> {
         Element version = document.createElement("version");
         version.setTextContent(String.valueOf(this.myApiVersion));
         root.appendChild(version);
-        
-        try (CSVWriter csvWrite = new CSVWriter(new FileWriter(this.targetDir + "packageDotXmlInventory.csv"))) {
-            String[] header = {"MetadataType", "Name", "CreatedBy", "CreatedDate", "ModifiedBy", "ModifiedDate"};
-            csvWrite.writeNext(header);
-            
-            for (final String mdType : mdTypes) {
-                if (theMap.get(mdType).isEmpty()) {
-                    continue;
-                }
-                
-                Element types = document.createElement("types");
-                root.appendChild(types);
-                Element name = document.createElement("name");
-                name.setTextContent(mdType);
-                types.appendChild(name);
-                
-                for (final InventoryItem item : theMap.get(mdType)) {
-                    
-                    
-                    
-                    Element member = document.createElement("members");
-                    member.setTextContent(item.getItemName());
-                    String createdDate = item.getCreatedDate() == null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getCreatedDate().getTime());
-                    String modifiedDate = item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getLastModifiedDate().getTime());
-                    
-                    String[] entries = {item.getType(),item.getItemName(), item.getCreatedByName(), createdDate, item.getLastModifiedByName(), modifiedDate};
-                    csvWrite.writeNext(entries);
-                    
-                    
-                    if (this.includeChangeData) {
-                        member.setAttribute("cd", createdDate);
-                        member.setAttribute("cb", String.format("%-20s", item.getCreatedByName(20)));
-                        member.setAttribute("mb", String.format("%-20s", item.getLastModifiedByName(20)));
-                        member.setAttribute("md", modifiedDate);
-                        member.setAttribute("mdt", item.getType());
-                    }
-                    types.appendChild(member);
-                }
+
+        for (final String mdType : mdTypes) {
+            if (theMap.get(mdType).isEmpty()) {
+                continue;
             }
-            
-            Transformer tf = TransformerFactory.newInstance().newTransformer();
-            tf.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-            tf.setOutputProperty(OutputKeys.INDENT, "yes");
-            tf.setOutputProperty(OutputKeys.METHOD, "xml");
-            tf.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-            Writer out = new StringWriter();
-            tf.transform(new DOMSource(document), new StreamResult(out));
-            
-            Utils.writeFile(this.targetDir + filename, out.toString());
+
+            Element types = document.createElement("types");
+            root.appendChild(types);
+            Element name = document.createElement("name");
+            name.setTextContent(mdType);
+            types.appendChild(name);
+
+            for (final InventoryItem item : theMap.get(mdType)) {
+
+                Element member = document.createElement("members");
+                member.setTextContent(item.getItemName());
+                String createdDate = item.getCreatedDate() == null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getCreatedDate().getTime());
+                String modifiedDate = item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getLastModifiedDate().getTime());
+
+                if (this.includeChangeData) {
+                    member.setAttribute("cd", createdDate);
+                    member.setAttribute("cb", String.format("%-20s", item.getCreatedByName(20)));
+                    member.setAttribute("mb", String.format("%-20s", item.getLastModifiedByName(20)));
+                    member.setAttribute("md", modifiedDate);
+                    member.setAttribute("mdt", item.getType());
+                }
+                types.appendChild(member);
+            }
         }
-        this.logger.log(Level.INFO, "Writing {0}", new File(this.targetDir + filename).getCanonicalPath());
+
+        Transformer tf = TransformerFactory.newInstance().newTransformer();
+        tf.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        tf.setOutputProperty(OutputKeys.INDENT, "yes");
+        tf.setOutputProperty(OutputKeys.METHOD, "xml");
+        tf.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+        Writer out = new StringWriter();
+        tf.transform(new DOMSource(document), new StreamResult(out));
+
+        Utils.writeFile(this.destManifestDir + filename, out.toString());
+        this.logger.log(Level.INFO, "Writing {0}", new File(this.destManifestDir + filename).getCanonicalPath());
     }
+
 }

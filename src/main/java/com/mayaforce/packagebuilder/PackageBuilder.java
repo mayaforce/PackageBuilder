@@ -4,6 +4,7 @@ import com.mayaforce.migrationtoolutils.Utils;
 import com.mayaforce.packagebuilder.inventory.InventoryItem;
 import com.mayaforce.packagebuilder.output.GitOutputManager;
 import com.mayaforce.packagebuilder.output.LogFormatter;
+import com.opencsv.CSVWriter;
 import com.sforce.soap.metadata.DescribeMetadataObject;
 import com.sforce.soap.metadata.DescribeMetadataResult;
 import com.sforce.soap.metadata.FileProperties;
@@ -21,6 +22,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import org.apache.http.HttpResponse;
@@ -92,9 +94,12 @@ public class PackageBuilder {
     private String srcPwd;
     private String srcToken;
     private String srcAccessToken;
-    private String metaSourceDownloadDir = "src";
+    private String metadataDir;
+    private String zipFileDir;
+    private String destinationManifestDir;
+    private String baseDir;
     private final long totalTimeStart = System.currentTimeMillis();
-    private String targetDir = "";
+
     private PartnerConnection srcPartnerConnection;
 
     private boolean includeChangeData = false;
@@ -161,14 +166,17 @@ public class PackageBuilder {
         final HashMap<String, ArrayList<InventoryItem>> inventory = new HashMap<>();
 
         this.myApiVersion = Double.parseDouble(parameters.getProperty(PbProperties.APIVERSION));
-        this.targetDir = Utils.checkPathSlash(Utils.checkPathSlash(parameters.getProperty(PbProperties.DESTINATION)));
-        this.metaSourceDownloadDir = Utils.checkPathSlash(
-                Utils.checkPathSlash(parameters.getProperty(PbProperties.METADATATARGETDIR)));
+
+        this.baseDir = Utils.checkPathSlash(parameters.getProperty(PbProperties.BASEDIRECTORY));
+        this.zipFileDir = Utils.checkPathSlash(baseDir + File.separator + Utils.checkPathSlash(parameters.getProperty(PbProperties.ZIPDIRECTORY)));
+        this.destinationManifestDir = Utils.checkPathSlash(baseDir + File.separator + Utils.checkPathSlash(parameters.getProperty(PbProperties.MANIFESTDIRECTORY)));
+        this.metadataDir = Utils.checkPathSlash(baseDir + File.separator + Utils.checkPathSlash(parameters.getProperty(PbProperties.METADATADIR)));
         // handling for building a package from a directory
         // if we have a base directory set, ignore everything else and generate
         // from the directory
 
-        if (parameters.getProperty(PbProperties.BASEDIRECTORY) != null) {
+        // TODO FIX ME
+        if ("from_source".equalsIgnoreCase(parameters.getProperty(PbProperties.RUNTYPE))) {
             this.generateInventoryFromDir(inventory);
         } else {
             this.generateInventoryFromOrg(inventory);
@@ -184,7 +192,7 @@ public class PackageBuilder {
             // now walk the contents of the folder we've unzipped into and fix any of the dates 
             // need to get all the files for InventoryItems that translate to multiple files
             // so classes, etc. that have a -meta.xml, aura that have child directories, etc.
-            new ZipAndFileFixer(totalInventory, logger).adjustFileDates(this.metaSourceDownloadDir);
+            new ZipAndFileFixer(totalInventory, logger).adjustFileDates(this.zipFileDir);
 
             final GitOutputManager gom = new GitOutputManager(this.parameters, logger);
             gom.commitToGit(totalInventory);
@@ -290,7 +298,7 @@ public class PackageBuilder {
 
                 // check if we got 1 file only, log if not
                 if (files.size() != 1) {
-                    logger.log(Level.INFO, "Permission settings (Profiles/PermSets) with dependent items over {0} items - won''t fit in one package. Please note that contents of profiles/permission sets may be incomplete.", maxItemsInRegularPackage);
+                    logger.log(Level.WARNING, "Permission settings (Profiles/PermSets) with dependent items over {0} items - won''t fit in one package. Please note that contents of profiles/permission sets may be incomplete.", maxItemsInRegularPackage);
                 }
 
             }
@@ -308,7 +316,9 @@ public class PackageBuilder {
                 breakIntoFilesResult.put("package.xml", singleFile);
                 packageCounter++;
             } else {
-                breakIntoFilesResult.put("package." + packageCounter++ + ".xml", singleFile);
+                String pkgFilename = String.format("package%02d.xml", packageCounter++);
+//                breakIntoFilesResult.put("package." + packageCounter++ + ".xml", singleFile);
+                breakIntoFilesResult.put(pkgFilename, singleFile);
             }
         }
 
@@ -431,22 +441,25 @@ public class PackageBuilder {
         // build the query
         final String query = "SELECT Id, Definition.DeveloperName, VersionNumber, Status, ManageableState, CreatedById, CreatedDate, LastModifiedById, LastModifiedDate FROM Flow WHERE ManageableState = 'unmanaged' AND  Definition.DeveloperName = '" + flowInventoryItem.getFullName() + "'";
         HttpClient httpClient = HttpClientBuilder.create().build();
+
         String fullRestUrl = this.srcUrlBase + "/services/data/v" + this.myApiVersion + "/tooling/query/?q=" + java.net.URLEncoder.encode(query, "ISO-8859-1");
 
-        logger.log(Level.FINEST, "Full Tooling API URL: {0}", fullRestUrl);
+        logger.log(Level.FINE, "Full Tooling API URL: {0}", fullRestUrl);
         HttpGet httpGet = new HttpGet(fullRestUrl);
 
-        httpGet.addHeader("Authorization", "Bearer " + this.srcAccessToken);
+        httpGet.addHeader("Authorization", "Bearer " + this.srcPartnerConnection.getConfig().getSessionId());
+        logger.log(Level.FINEST, "Bearer Token: {0}", this.srcPartnerConnection.getConfig().getSessionId());
         httpGet.addHeader("Content-Type", "application/json");
         JSONParser jparser = new JSONParser();
 
         try {
             HttpResponse response = httpClient.execute(httpGet);
+
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode == 200) {
                 String response_string = EntityUtils.toString(response.getEntity());
 
-                logger.log(Level.FINEST, "Full Response JSON: {0}", response_string);
+                logger.log(Level.FINER, "Full Response JSON: {0}", response_string);
                 JSONObject json = (JSONObject) jparser.parse(response_string);
                 JSONArray j = (JSONArray) json.get("records");
                 for (int i = 0; i < j.size(); i++) {
@@ -472,8 +485,8 @@ public class PackageBuilder {
 
                 }
             } else {
-                Logger.getLogger(PackageBuilder.class.getName()).log(Level.WARNING, response.toString());
-                Logger.getLogger(PackageBuilder.class.getName()).log(Level.WARNING, EntityUtils.toString(response.getEntity()));
+                Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, response.toString());
+                Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, EntityUtils.toString(response.getEntity()));
             }
 
         } catch (IOException ex) {
@@ -819,7 +832,7 @@ public class PackageBuilder {
                     }
                 }
 
-                itemCount++;
+                //itemCount++; // Do we still need this to count folders in the metadata list? 
             }
             logger.log(Level.FINE, "{0} folders found. Adding to retrieve list.", foldersToProcess.size());
         }
@@ -976,9 +989,9 @@ public class PackageBuilder {
         logger.log(Level.INFO, "Will fetch: {0} from: {1}", new Object[]{String.join(", ", workToDo), this.srcUrl});
         logger.log(Level.FINE, "Using user: {0} skipping: {1}", new Object[]{this.srcUser, this.skipItems});
 
-        logger.log(Level.INFO, "target directory: {0}", this.targetDir);
+        logger.log(Level.INFO, "target directory: {0}", this.destinationManifestDir);
 
-        Utils.checkDir(this.targetDir);
+        Utils.checkDir(this.destinationManifestDir);
 
         final Iterator<String> i = workToDo.iterator();
         int counter = 0;
@@ -1060,6 +1073,9 @@ public class PackageBuilder {
         // now check if anything we have needs to be skipped
         skipCount = this.handleSkippingItems(myFile);
 
+        generatePackageInventoryCSV(myFile, "packageXml.csv");
+        generatePackageInventoryCSV(inventory, "packageFullInventory.csv");
+
         // now break it up into files if needed
         final HashMap<String, HashMap<String, ArrayList<InventoryItem>>> files = this.createPackageFiles(myFile);
 
@@ -1071,7 +1087,7 @@ public class PackageBuilder {
                     && myFile.containsKey("Profile")) {
                 logger.log(Level.INFO, "Asked to strip user permissions from Profiles - will do so now.");
                 ProfileCompare pc = new ProfileCompare(thisLogLevel);
-                pc.stripUserPermissionsFromProfiles(parameters.getProperty(PbProperties.METADATATARGETDIR));
+                pc.stripUserPermissionsFromProfiles(this.metadataDir);
 
             }
         }
@@ -1086,6 +1102,35 @@ public class PackageBuilder {
 
         return files;
 
+    }
+
+    private void generatePackageInventoryCSV(
+            final HashMap<String, ArrayList<InventoryItem>> inventory,
+            String csvFilename)
+            throws Exception {
+        final SimpleDateFormat format1 = new SimpleDateFormat(PbConstants.DEFAULT_DATE_FORMAT);
+        final ArrayList<String> mdTypes = new ArrayList<>(inventory.keySet());
+        logger.log(Level.FINE, "Csv file:" + this.destinationManifestDir + File.separator + csvFilename);
+        try (CSVWriter csvWrite = new CSVWriter(new FileWriter(this.destinationManifestDir + File.separator + csvFilename))) {
+
+            String[] header = {"MetadataType", "Name", "CreatedBy", "CreatedDate", "ModifiedBy", "ModifiedDate"};
+            csvWrite.writeNext(header);
+
+            for (final String mdType : mdTypes) {
+                if (inventory.get(mdType).isEmpty()) {
+                    continue;
+                }
+
+                for (final InventoryItem item : inventory.get(mdType)) {
+                    String createdDate = item.getCreatedDate() == null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getCreatedDate().getTime());
+                    String modifiedDate = item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getLastModifiedDate().getTime());
+
+                    String[] entries = {item.getType(), item.getItemName(), item.getCreatedByName(), createdDate, item.getLastModifiedByName(), modifiedDate};
+                    csvWrite.writeNext(entries);
+
+                }
+            }
+        }
     }
 
     /*
@@ -1124,10 +1169,11 @@ public class PackageBuilder {
         // Add all XML Files to the download queue
         files.forEach((curFileName, members) -> {
             final PackageAndFilePersister pfp = new PackageAndFilePersister(this.myApiVersion,
-                    this.targetDir,
-                    this.metaSourceDownloadDir,
-                    parameters.getProperty(PbProperties.DESTINATION),
-                    members, curFileName,
+                    this.destinationManifestDir,
+                    this.metadataDir,
+                    this.zipFileDir,
+                    members, 
+                    curFileName,
                     this.includeChangeData,
                     this.downloadData,
                     this.unzipDownload,
@@ -1142,7 +1188,7 @@ public class PackageBuilder {
         // if doing git commit, clean out the target directory before starting (unless requested not to)
         // but first check that someplace above it actually has the GIT stuff in it
         if (gitCommit) {
-            File targetDirectory = new File(parameters.getProperty(PbProperties.DESTINATION) + File.separator + this.metaSourceDownloadDir);
+            File targetDirectory = new File(this.metadataDir);
             if (!isParamTrue(PbProperties.RETAINTARGETDIR)) {
                 FileUtils.deleteDirectory(targetDirectory);
             }
@@ -1282,7 +1328,7 @@ public class PackageBuilder {
             try {
                 fromDate = java.sql.Date.valueOf(fromDateString);
             } catch (IllegalArgumentException e) {
-                logger.log(Level.FINE, "FromDate value: {0} cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without FromDate parameter.", fromDateString);
+                logger.log(Level.WARNING, "FromDate value: {0} cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without FromDate parameter.", fromDateString);
             }
         }
 
@@ -1290,7 +1336,7 @@ public class PackageBuilder {
             try {
                 toDate = java.sql.Date.valueOf(toDateString);
             } catch (IllegalArgumentException e) {
-                logger.log(Level.FINE, "ToDate value: {0} cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without ToDate parameter.", toDateString);
+                logger.log(Level.WARNING, "ToDate value: {0} cannot be parsed to a proper date. Required format: YYYY-[M]M-[D]D. Continuing without ToDate parameter.", toDateString);
             }
         }
         SortedSet<String> sortedSet = new TreeSet<>(myFile.keySet());
@@ -1551,6 +1597,7 @@ public class PackageBuilder {
                     mdTypeSkipCount++;
                     i.remove();
                 } else {
+                    itemCount++;
                     unskippedItemCount++;
                     mdTypeUnskipCount++;
                 }
@@ -1657,7 +1704,7 @@ public class PackageBuilder {
             for (final InventoryItem i : myFile.get(mdName)) {
                 final HashMap<String, String> lastUpdUser = usersBySalesforceID.get(i.getLastModifiedById());
                 final HashMap<String, String> createdByUser = usersBySalesforceID.get(i.getCreatedById());
-                
+
                 if (lastUpdUser != null) {
                     i.setLastModifiedByEmail(lastUpdUser.get("Email"));
                     i.setLastModifiedByUsername(lastUpdUser.get("Username"));
@@ -1666,14 +1713,13 @@ public class PackageBuilder {
                     i.setLastModifiedByEmail("null");
                     i.setLastModifiedByUsername("null");
                 }
-                
+
                 if (createdByUser != null) {
                     i.getFp().setCreatedByName(createdByUser.get("Name")); //Add missing names from Flow Versions. 
                 }
 
             }
         }
-
 
     }
 

@@ -31,6 +31,7 @@ public class PbProperties {
     public static final String RESTURLBASE = "/services/data/u/";
     public static final String GITCOMMIT = "gitcommit";
     public static final String UNZIP = "unzip";
+    public static final String RUNTYPE = "runtype";
     public static final String BASEDIRECTORY = "basedirectory";
     public static final String FROMDATE = "fromdate";
     public static final String INCLUDENAMESPACEDITEMS = "includenamespaceditems";
@@ -49,10 +50,11 @@ public class PbProperties {
     public static final String TODATE = "todate";
     public static final String SKIPUSERNAME = "skipusername";
     public static final String INCLUDEPATTERNS = "includepatterns";
-    public static final String METADATATARGETDIR = "metadatatargetdir";
+    public static final String METADATADIR = "metadatadir";
     public static final String TOKEN = "sf.token";
     public static final String BUILDPROPS = "buildprops";
-    public static final String DESTINATION = "destination";
+    public static final String MANIFESTDIRECTORY = "destination";
+    public static final String ZIPDIRECTORY = "zipdir";
     public static final String STRIPPROFILEUSERPERMISSIONS = "stripprofileuserpermissions";
     public static final String INCLUDECHANGEDATA = "includechangedata";
     public static final String LOCALONLY = "localonly";
