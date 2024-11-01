@@ -70,4 +70,14 @@
                 <goal>install</goal>
             </goals>
         </action>
+        <action>
+            <actionName>CUSTOM-Analyze Maven Dependencies</actionName>
+            <displayName>Analyze Maven Dependencies</displayName>
+            <goals>
+                <goal>dependency:analyze</goal>
+            </goals>
+            <properties>
+                <ignoreNonCompile></ignoreNonCompile>
+            </properties>
+        </action>
     </actions>

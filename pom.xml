@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mayaforce</groupId>
     <artifactId>packagebuilder</artifactId>
-    <version>3.10.0_SFDCv62.0</version>
+    <version>3.10.1_SFDCv62.0</version>
     <name>Salesforce Package Builder</name>
     <packaging>jar</packaging>
     <description>Generate package.xml files for Salesforce - API 62 enabled</description>
@@ -116,17 +116,17 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
+    <!--    <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>33.3.1-jre</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
             <version>4.0.0-beta-5</version>
         </dependency>
-        <dependency>
+      <!--  <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-eclipse-compiler</artifactId>
             <version>3.7.0</version>
@@ -145,7 +145,7 @@
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
             <version>4.0.2</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
@@ -170,6 +170,20 @@
             <version>5.9</version>
             <type>jar</type>
         </dependency>
+        <dependency>
+            <groupId>com.force.api</groupId>
+            <artifactId>force-wsc</artifactId>
+            <version>62.0.0</version>
+            <scope>compile</scope>
+            <type>jar</type>
+        </dependency>
+   <!--     <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-xml</artifactId>
+            <version>4.0.4</version>
+            <scope>compile</scope>
+            <type>jar</type>
+        </dependency> -->
     </dependencies>
     
     
