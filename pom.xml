@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mayaforce</groupId>
     <artifactId>packagebuilder</artifactId>
-    <version>3.9.5SFDCv62.0</version>
+    <version>3.10.0_SFDCv62.0</version>
     <name>Salesforce Package Builder</name>
     <packaging>jar</packaging>
     <description>Generate package.xml files for Salesforce - API 62 enabled</description>

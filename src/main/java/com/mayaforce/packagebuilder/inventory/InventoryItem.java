@@ -8,6 +8,50 @@ import com.sforce.soap.metadata.FileProperties;
 public class InventoryItem {
 
     /**
+     * @return the createdByEmail
+     */
+    public String getCreatedByEmail() {
+        return createdByEmail;
+    }
+
+    /**
+     * @param createdByEmail the createdByEmail to set
+     */
+    public void setCreatedByEmail(String createdByEmail) {
+        this.createdByEmail = createdByEmail;
+    }
+
+
+    /**
+     * @return the excludeFromInventory
+     */
+    public boolean isExcludeFromInventory() {
+        return excludeFromInventory;
+    }
+
+    /**
+     * @param excludeFromInventory the excludeFromInventory to set
+     */
+    public void setExcludeFromInventory(boolean excludeFromInventory) {
+        this.excludeFromInventory = excludeFromInventory;
+    }
+
+    /**
+     * @return the excludeReason
+     */
+    public String getExcludeReason() {
+        return excludeReason;
+    }
+
+    /**
+     * @param excludeReason the excludeReason to set
+     */
+    public void setExcludeReason(String excludeReason) {
+        this.excludeReason = excludeReason;
+        this.excludeFromInventory = true;
+    }
+
+    /**
      * @return the customFieldType
      */
     public String getMetadataSubType() {
@@ -247,6 +291,8 @@ public class InventoryItem {
     private boolean isUpdated;
     private String lastModifiedByEmail;
     private String lastModifiedByUsername;
+    private String createdByUsername;
+    private String createdByEmail;
     private String localFileName;
     private DescribeMetadataObject describe;
     private String folderName;
@@ -255,6 +301,9 @@ public class InventoryItem {
     private boolean inFolder = false;
     private String typeOverride;
     private String metadataSubType = "notSet";
+    private boolean excludeFromInventory=false;
+    private String excludeReason="";
+    private String includeReason="";
 
     public InventoryItem(String i, FileProperties f, DescribeMetadataObject d, boolean isF, String fullNameAndDirOverride) {
         
@@ -350,6 +399,16 @@ public class InventoryItem {
         return getFp() == null ? getFolderName() + '/' + getItemName() : getFp().getFileName();
 
     }
+    
+    public String getPathAndFilename() {
+        if (describe != null) {
+            return describe.getDirectoryName() + "/" + getItemName();
+        } if (getFp() != null) {
+            return getFp().getType() + "/" + getItemName();
+        } else {
+            return getItemName();
+        }
+    }
 
     public String getFullName() {
         if (this.getFullNameAndDirOverride() != null) {
@@ -365,6 +424,8 @@ public class InventoryItem {
     public String getLastModifiedByName() {
         return getFp() == null ? null : getFp().getLastModifiedByName();
     }
+    
+    
 
     public String getLastModifiedByName(int charLimit) {
         String temp = getLastModifiedByName();
@@ -400,22 +461,38 @@ public class InventoryItem {
         status = newStatus;
     }
 
-    public String toCSV() {
-        return getType() + ","
-                + getItemName() + ","
-                + getItemVersion() + ","
-                + getLastModifiedDate() + ","
-                + getLastModifiedByName() + ","
-                + getCreatedDate() + ","
-                + getCreatedByName() + ","
-                + getFp() == null ? null : getFp().getId() + ",";
-
-    }
-
     private String fullNameAndDirOverride;
 
     public void setfullNameAndDirOverride(String fullNameAndDirOverride) {
         this.setFullNameAndDirOverride(fullNameAndDirOverride);
 
+    }
+
+    /**
+     * @return the includeReason
+     */
+    public String getIncludeReason() {
+        return includeReason;
+    }
+
+    /**
+     * @param includeReason the includeReason to set
+     */
+    public void setIncludeReason(String includeReason) {
+        this.includeReason = includeReason;
+    }
+
+    /**
+     * @return the createdByUsername
+     */
+    public String getCreatedByUsername() {
+        return createdByUsername;
+    }
+
+    /**
+     * @param createdByUsername the createdByUsername to set
+     */
+    public void setCreatedByUsername(String createdByUsername) {
+        this.createdByUsername = createdByUsername;
     }
 }

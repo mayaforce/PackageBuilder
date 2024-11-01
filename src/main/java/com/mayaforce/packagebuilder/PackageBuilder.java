@@ -85,6 +85,7 @@ public class PackageBuilder {
     private double myApiVersion;
     private String skipItems;
     private HashMap<String, DescribeMetadataObject> describeMetadataObjectsMap;
+    private HashMap<String, ArrayList<InventoryItem>> completeInventory;
 
     private HashMap<String, String> folderRecursivePath = new HashMap<>(); //String1: Metadata Type|Folder Name String2: Full path
     private MetadataConnection srcMetadataConnection;
@@ -1045,7 +1046,8 @@ public class PackageBuilder {
         int pkgItemCount = 0;
         int skipCount = 0;
 
-        final HashMap<String, ArrayList<InventoryItem>> myFile = new HashMap<>();
+        final HashMap<String, ArrayList<InventoryItem>> inventoryByMdTypeFull = new HashMap<>();
+        final HashMap<String, ArrayList<InventoryItem>> inventoryByMdTypeFiltered = new HashMap<>();
 
         final ArrayList<String> types = new ArrayList<>();
         types.addAll(inventory.keySet());
@@ -1059,32 +1061,50 @@ public class PackageBuilder {
                 continue;
             }
 
-            myFile.put(mdType, new ArrayList<InventoryItem>());
+            inventoryByMdTypeFull.put(mdType, new ArrayList<InventoryItem>());
+            
 
             Collections.sort(items, (o1, o2) -> o1.getItemName().compareTo(o2.getItemName()));
             for (final InventoryItem item : items) {
-                myFile.get(mdType).add(item);
+                inventoryByMdTypeFull.get(mdType).add(item);
                 pkgItemCount++;
             }
         }
 
-        this.populateUserEmails(myFile);
+        this.populateUserEmails(inventoryByMdTypeFull);
 
         // now check if anything we have needs to be skipped
-        skipCount = this.handleSkippingItems(myFile);
+        skipCount = this.handleSkippingItems(inventoryByMdTypeFull);
+        
+        
+        for (final String mdType : types) {
 
-        generatePackageInventoryCSV(myFile, "packageXml.csv");
-        generatePackageInventoryCSV(inventory, "packageFullInventory.csv");
+            // check if we have any items in this category
+            final ArrayList<InventoryItem> items = inventoryByMdTypeFull.get(mdType);
+            if (items == null || items.size() < 1) {
+                continue;
+            }
+            inventoryByMdTypeFiltered.put(mdType, new ArrayList<InventoryItem>());
+
+            for (final InventoryItem item : items) {
+                if (!item.isExcludeFromInventory()) {
+                    inventoryByMdTypeFiltered.get(mdType).add(item);
+                }
+            }
+        }
+
+        generatePackageInventoryCSV(inventoryByMdTypeFiltered, "packageXml.csv");
+        generatePackageInventoryCSV(inventoryByMdTypeFull, "packageFullInventory.csv");
 
         // now break it up into files if needed
-        final HashMap<String, HashMap<String, ArrayList<InventoryItem>>> files = this.createPackageFiles(myFile);
+        final HashMap<String, HashMap<String, ArrayList<InventoryItem>>> files = this.createPackageFiles(inventoryByMdTypeFiltered);
 
         writeAndDownloadPackages(files);
 
         if (downloadData) {
 
             if (this.parameters.containsKey(PbProperties.STRIPPROFILEUSERPERMISSIONS)
-                    && myFile.containsKey("Profile")) {
+                    && inventoryByMdTypeFull.containsKey("Profile")) {
                 logger.log(Level.INFO, "Asked to strip user permissions from Profiles - will do so now.");
                 ProfileCompare pc = new ProfileCompare(thisLogLevel);
                 pc.stripUserPermissionsFromProfiles(this.metadataDir);
@@ -1113,7 +1133,7 @@ public class PackageBuilder {
         logger.log(Level.FINE, "Csv file:" + this.destinationManifestDir + File.separator + csvFilename);
         try (CSVWriter csvWrite = new CSVWriter(new FileWriter(this.destinationManifestDir + File.separator + csvFilename))) {
 
-            String[] header = {"MetadataType", "Name", "CreatedBy", "CreatedDate", "ModifiedBy", "ModifiedDate"};
+            String[] header = {"MetadataType", "Name", "CreatedBy", "CreatedByUsername", "CreatedDate", "ModifiedBy", "ModifiedByUsername", "ModifiedDate", "Result", "ResultReason", "FullPath", "SubType"};
             csvWrite.writeNext(header);
 
             for (final String mdType : mdTypes) {
@@ -1125,7 +1145,7 @@ public class PackageBuilder {
                     String createdDate = item.getCreatedDate() == null || item.getCreatedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getCreatedDate().getTime());
                     String modifiedDate = item.getLastModifiedDate() == null || item.getLastModifiedDate().getTimeInMillis() == 0 ? String.format("%-16s", "") : format1.format(item.getLastModifiedDate().getTime());
 
-                    String[] entries = {item.getType(), item.getItemName(), item.getCreatedByName(), createdDate, item.getLastModifiedByName(), modifiedDate};
+                    String[] entries = {item.getType(), item.getItemName(), item.getCreatedByName(), item.getCreatedByUsername(),  createdDate, item.getLastModifiedByName(), item.getLastModifiedByUsername(), modifiedDate, item.isExcludeFromInventory() ? "Excluded" : "Included", item.getExcludeReason()+item.getIncludeReason(),  item.getPathAndFilename(), item.getMetadataSubType()};
                     csvWrite.writeNext(entries);
 
                 }
@@ -1416,6 +1436,7 @@ public class PackageBuilder {
                     if (m.matches()) {
                         logger.log(Level.FINE, "\nforceincludepatterns : {0} matches the metadata item: {1}, item will be included.", new Object[]{p.pattern(), metadataObjectName});
                         forceInclude = true;
+                        mdItem.setIncludeReason("forceincludepatterns:"+p.pattern());
                         break;
                     }
                 }
@@ -1426,7 +1447,7 @@ public class PackageBuilder {
                             final Matcher m = p.matcher(metadataObjectName);
                             if (m.matches()) {
                                 logger.log(Level.FINE, "\nskippatterns: {0} matches the metadata item: {1}, item will be skipped.", new Object[]{p.pattern(), metadataObjectName});
-
+                                mdItem.setExcludeReason("skippatterns:"+p.pattern());
                                 itemSkipped = true;
                                 break;
                             }
@@ -1444,7 +1465,7 @@ public class PackageBuilder {
                         }
                         if (!matchesPattern) {
                             logger.log(Level.FINE, "\nincludepatterns (no match): {0} does not match any item name include patterns, item will be skipped.", metadataObjectName);
-
+                            mdItem.setExcludeReason("includepatterns no match found:");
                             itemSkipped = true;
                         }
                     }
@@ -1453,7 +1474,7 @@ public class PackageBuilder {
                             final Matcher m = p.matcher(mdItem.getLastModifiedByName());
                             if (m.matches()) {
                                 logger.log(Level.FINE, "\nskipusername: {0} matches the metadata item: {1} ({2}), item will be skipped.", new Object[]{p.pattern(), metadataObjectName, mdItem.getLastModifiedByName()});
-
+                                mdItem.setExcludeReason("skipusername last modified by name:"+p.pattern());
                                 itemSkipped = true;
                                 break;
                             }
@@ -1470,7 +1491,7 @@ public class PackageBuilder {
                         }
                         if (!matchesPattern) {
                             logger.log(Level.FINE, "\nincludeusername (no match): {0} ({1}) does not match any user name include patterns, item will be skipped.", new Object[]{metadataObjectName, mdItem.getLastModifiedByName()});
-
+                            mdItem.setExcludeReason("includeusername no match found:");
                             itemSkipped = true;
                         }
                     }
@@ -1481,7 +1502,7 @@ public class PackageBuilder {
                             final Matcher m = p.matcher(lastModEmail);
                             if (m.matches()) {
                                 logger.log(Level.FINE, "\nskipemail: {0} matches the metadata item: {1} ({2}), item will be skipped.", new Object[]{p.pattern(), metadataObjectName, mdItem.getLastModifiedByEmail()});
-
+                                mdItem.setExcludeReason("skipuemail last modified by name:"+p.pattern());
                                 itemSkipped = true;
                                 break;
                             }
@@ -1497,7 +1518,7 @@ public class PackageBuilder {
                         }
                         if (!matchesPattern) {
                             logger.log(Level.FINE, "\nincludeemail (no match): {0} ({1}) does not match any email include patterns, item will be skipped.", new Object[]{metadataObjectName, mdItem.getLastModifiedByEmail()});
-
+                            mdItem.setExcludeReason("includeemail no match found:");
                             itemSkipped = true;
                         }
                     }
@@ -1510,7 +1531,7 @@ public class PackageBuilder {
                         if (!itemSkipped && fromDate != null) {
 
                             if (itemLastModified == null || fromDate.after(itemLastModified.getTime())) {
-
+                                mdItem.setExcludeReason("fromdate greater than last modified date");
                                 itemSkipped = true;
                                 logger.log(Level.FINE, "fromdate: {0} last modified ({1}) before provided FromDate ({2}), item will be skipped.", new Object[]{metadataObjectName, itemLastModified == null || itemLastModified.getTimeInMillis() == 0 ? "null" : format1.format(itemLastModified.getTime()), fromDateString});
                             }
@@ -1518,7 +1539,7 @@ public class PackageBuilder {
                         }
                         if (!itemSkipped && toDate != null) {
                             if (itemLastModified == null || toDate.before(itemLastModified.getTime())) {
-
+                                mdItem.setExcludeReason("todate less than than last modified date");
                                 itemSkipped = true;
                                 logger.log(Level.FINE, "todate: {0} last modified ({1}) after provided ToDate ({2}), item will be skipped.", new Object[]{metadataObjectName, itemLastModified == null || itemLastModified.getTimeInMillis() == 0 ? "null" : format1.format(itemLastModified.getTime()), toDateString});
                             }
@@ -1529,6 +1550,7 @@ public class PackageBuilder {
                     //Check against manageability
                     if (!itemSkipped && mdItem.getFileProperties() != null && skipManageableStateInstalled_r) {
                         if (mdItem.getFileProperties().getManageableState() == null || mdItem.getFileProperties().getManageableState().equals(ManageableState.installed)) {
+                            mdItem.setExcludeReason("skipmanagedstateinstalled");
                             itemSkipped = true;
                             logger.log(Level.FINE, "skipmanagedstateinstalled: Skip managed package file matches the metadata item: {0}, item will be skipped.\n", metadataObjectName);
                         }
@@ -1555,6 +1577,7 @@ public class PackageBuilder {
 
                                 } else {
                                     //Can't read metadata. Skip
+                                    mdItem.setExcludeReason("verifymetadataread unable to read file");
                                     logger.log(Level.FINE, "verifymetadataread Metadata {0} skipped - can''t read: ", metadataObjectName);
                                     itemSkipped = true;
                                 }
@@ -1562,6 +1585,7 @@ public class PackageBuilder {
                             } catch (final ConnectionException mdtLookup) {
                                 logger.log(Level.INFO, "Exception processing: {0} msg: {1}", new Object[]{mdItem.getType(), mdtLookup.getMessage()});
                                 logger.log(Level.INFO, "Metadata Lookup Error on file: {0}", metadataObjectName);
+                                mdItem.setExcludeReason("connectionexception");
                                 itemSkipped = true;
                             }
                         }
@@ -1570,6 +1594,7 @@ public class PackageBuilder {
                     //Check for active (Flows) 
                     if (!itemSkipped && limitToActive_r && !mdItem.getStatus().equals("Active")) {
                         itemSkipped = true;
+                        mdItem.setExcludeReason("limittoactive");
                         logger.log(Level.INFO, "Skip non-active or managed metadata: {0}, item will be skipped.", metadataObjectName);
                     }
 
@@ -1586,7 +1611,7 @@ public class PackageBuilder {
                         }
                         if (!matchesPattern) {
                             logger.log(Level.FINE, "Metadata Sub Type Filter (no match): {0} ({1}) does not match any user name include patterns, item will be skipped.", new Object[]{metadataObjectName, mdItem.getMetadataSubType()});
-
+                            mdItem.setExcludeReason("metadatasubtypeincludepattern no match found");
                             itemSkipped = true;
                         }
                     }
@@ -1595,7 +1620,7 @@ public class PackageBuilder {
                 if (itemSkipped) {
                     skipCount++;
                     mdTypeSkipCount++;
-                    i.remove();
+                    //i.remove 
                 } else {
                     itemCount++;
                     unskippedItemCount++;
@@ -1715,7 +1740,12 @@ public class PackageBuilder {
                 }
 
                 if (createdByUser != null) {
+                    i.setCreatedByEmail(createdByUser.get("Email"));
+                    i.setCreatedByUsername(createdByUser.get("Username"));
                     i.getFp().setCreatedByName(createdByUser.get("Name")); //Add missing names from Flow Versions. 
+                } else {
+                    i.setCreatedByEmail("null");
+                    i.setCreatedByUsername("null");
                 }
 
             }
