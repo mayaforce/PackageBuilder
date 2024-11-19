@@ -317,7 +317,7 @@ public class PackageBuilder {
                 breakIntoFilesResult.put("package.xml", singleFile);
                 packageCounter++;
             } else {
-                String pkgFilename = String.format("package%02d.xml", packageCounter++);
+                String pkgFilename = String.format("package.%02d.xml", packageCounter++);
 //                breakIntoFilesResult.put("package." + packageCounter++ + ".xml", singleFile);
                 breakIntoFilesResult.put(pkgFilename, singleFile);
             }
@@ -1602,8 +1602,8 @@ public class PackageBuilder {
                     if (!itemSkipped && !metadataSubTypeIncludePatterns_r.isEmpty()) {
                         boolean matchesPattern = false;
                         String lastModUsername = mdItem.getMetadataSubType() == null ? "null" : mdItem.getMetadataSubType();
-                        for (Pattern p : metadataSubTypeIncludePatterns_r) {
-                            final Matcher m = p.matcher(lastModUsername);
+                        for (Pattern p : metadataSubTypeIncludePatterns_r) { 
+                            final Matcher m = p.matcher(lastModUsername); 
                             if (m.matches()) {
                                 matchesPattern = true;
                                 logger.log(Level.FINEST, "Metadata Sub Type Filter MATCH: {0} ({1}) ", new Object[]{metadataObjectName, mdItem.getMetadataSubType()});

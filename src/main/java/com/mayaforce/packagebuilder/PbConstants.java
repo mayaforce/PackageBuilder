@@ -693,6 +693,6 @@ public class PbConstants {
     static final String[] ADDITIONALTYPESTOADD = new String[]{"FeatureParameterBoolean", "FeatureParameterDate", "FeatureParameterInteger"
     };
     static final String[] ITEMSTOINCLUDEWITHPROFILESPERMSETS = new String[]{"ApexClass", "CustomApplication", "CustomField", "CustomObject", "CustomTab", "ExternalDataSource", "RecordType", "ApexPage"};
-    static final String[] SPECIALTREATMENTPERMISSIONTYPES = new String[]{"Profile", "PermissionSet"};
+    static final String[] SPECIALTREATMENTPERMISSIONTYPES = new String[]{"Profile"};
 
 }
