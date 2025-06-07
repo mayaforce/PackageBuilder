@@ -28,7 +28,73 @@ public class PbConstants {
     public static final int DEFAULT_MAXITEMSINPACKAGE = 10000;
     public static final int CONCURRENT_THREADS = 8;
 
-    //To recreate this list: https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    //    To recreate this list:     https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/standardvalueset_names.htm 
+    //              Public Sec :     https://developer.salesforce.com/docs/atlas.en-us.psc_api.meta/psc_api/psc_standardvalueset_names.htm
+    //          Education Cloud:     https://developer.salesforce.com/docs/atlas.en-us.edu_cloud_dev_guide.meta/edu_cloud_dev_guide/edu_cloud_standard_valueset_names.htm
+    //   Salesforce Org Browser:     https://github.com/forcedotcom/source-deploy-retrieve/blob/main/src/registry/stdValueSetRegistry.json Unlikely to contain new values
     // Use regex \d$ to remove footnote numbers. Note that "RoleInTerritory2", ends in a 2 and not a footnote number
     // AddressCountryCode an AddressStateCode are not listed on the documentation page. Manually added. Note that they are incompatible deploying with settings/Address.settings (state/country picklists feature)
     static final String[] STANDARDVALUETYPESARRAY = new String[]{

@@ -403,6 +403,7 @@
 "MemberPlanStatus",
 "MemberPlanVerificStatus",
 "MilitaryService",
+"MilitaryServiceEnum",
 "ModifiedCareCodeType",
 "ModifiedDiagnosisCodeType",
 "ModifiedDrugCodeType",
