@@ -4,7 +4,7 @@
   <groupId>com.mayaforce</groupId>
   <artifactId>packagebuilder</artifactId>
   <name>Salesforce Package Builder</name>
-  <version>3.10.3_SFDCv64.0</version>
+  <version>3.10.4_SFDCv64.0</version>
   <description>Generate package.xml files for Salesforce - API 64 enabled</description>
   <url>https://github.com/mayaforce/PackageBuilder</url>
   <licenses>

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mayaforce</groupId>
     <artifactId>packagebuilder</artifactId>
-    <version>3.10.3_SFDCv64.0</version>
+    <version>3.10.4_SFDCv64.0</version>
     <name>Salesforce Package Builder</name>
     <packaging>jar</packaging>
     <description>Generate package.xml files for Salesforce - API 64 enabled</description>
@@ -108,7 +108,7 @@
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
-            <version>7.2.1.202505142326-r</version>
+            <version>7.3.0.202506031305-r</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -167,7 +167,7 @@
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
-            <version>5.11</version>
+            <version>5.11.1</version>
             <type>jar</type>
         </dependency>
         <dependency>
