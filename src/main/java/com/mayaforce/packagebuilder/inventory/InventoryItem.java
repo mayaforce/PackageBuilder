@@ -385,10 +385,10 @@ public class InventoryItem {
         if (this.getFullNameAndDirOverride() != null) {
             return getFullNameAndDirOverride();
         }
-        if (getFp() != null && getFp().getType().equals("Layout") && getFp().getNamespacePrefix() != null) {
+        if (getFp() != null && getFp().getType() != null && getFp().getType().equals("Layout") && getFp().getNamespacePrefix() != null) {
             return itemName.replaceFirst("\\-", "-" + getFp().getNamespacePrefix() + "__");
         }        
-        if (getFp() != null && getFp().getType().equals("CustomMetadata") && getFp().getNamespacePrefix() != null) {
+        if (getFp() != null && getFp().getType() != null && getFp().getType().equals("CustomMetadata") && getFp().getNamespacePrefix() != null) {
             return itemName.replaceFirst("\\.", "." + getFp().getNamespacePrefix() + "__");
         }
         return itemName;
