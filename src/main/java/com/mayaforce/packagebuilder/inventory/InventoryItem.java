@@ -355,7 +355,7 @@ public class InventoryItem {
         if (getFp() == null) {
             return getItemName();
         } else {
-            return getFp().getType() + ":" + getFp().getFullName();
+            return getType() + ":" + getFp().getFullName();
         }
     }
 
@@ -385,10 +385,10 @@ public class InventoryItem {
         if (this.getFullNameAndDirOverride() != null) {
             return getFullNameAndDirOverride();
         }
-        if (getFp() != null && getFp().getType() != null && getFp().getType().equals("Layout") && getFp().getNamespacePrefix() != null) {
+        if (getType() != null && getType().equals("Layout") && getFp().getNamespacePrefix() != null) {
             return itemName.replaceFirst("\\-", "-" + getFp().getNamespacePrefix() + "__");
         }        
-        if (getFp() != null && getFp().getType() != null && getFp().getType().equals("CustomMetadata") && getFp().getNamespacePrefix() != null) {
+        if (getType() != null && getType().equals("CustomMetadata") && getFp().getNamespacePrefix() != null) {
             return itemName.replaceFirst("\\.", "." + getFp().getNamespacePrefix() + "__");
         }
         return itemName;
@@ -404,7 +404,7 @@ public class InventoryItem {
         if (describe != null) {
             return describe.getDirectoryName() + "/" + getItemName();
         } if (getFp() != null) {
-            return getFp().getType() + "/" + getItemName();
+            return getType() + "/" + getItemName();
         } else {
             return getItemName();
         }
@@ -447,6 +447,9 @@ public class InventoryItem {
     public String getType() {
         if (getTypeOverride() != null) {
             return getTypeOverride();
+        }
+        if (getDescribe() != null ){
+            return getDescribe().getXmlName();
         }
         return getFp() == null ? null : getFp().getType();
     }
