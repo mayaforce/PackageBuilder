@@ -304,6 +304,9 @@ public class InventoryItem {
     private boolean excludeFromInventory=false;
     private String excludeReason="";
     private String includeReason="";
+    private boolean forceInclude=false;
+    private String forceIncludeReason = "";
+    
 
     public InventoryItem(String i, FileProperties f, DescribeMetadataObject d, boolean isF, String fullNameAndDirOverride) {
         
@@ -500,5 +503,33 @@ public class InventoryItem {
      */
     public void setCreatedByUsername(String createdByUsername) {
         this.createdByUsername = createdByUsername;
+    }
+
+    /**
+     * @return the forceInclude
+     */
+    public boolean isForceInclude() {
+        return forceInclude;
+    }
+
+    /**
+     * @param forceInclude the forceInclude to set
+     */
+    public void setForceInclude(boolean forceInclude) {
+        this.forceInclude = forceInclude;
+    }
+
+    /**
+     * @return the forceIncludeReason
+     */
+    public String getForceIncludeReason() {
+        return forceIncludeReason;
+    }
+
+    /**
+     * @param forceIncludeReason the forceIncludeReason to set
+     */
+    public void setForceIncludeReason(String forceIncludeReason) {
+        this.forceIncludeReason = forceIncludeReason;
     }
 }

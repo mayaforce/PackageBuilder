@@ -64,5 +64,7 @@ public class PbProperties {
     public static final String VERIFYMETADATAREAD = "verifymetadataread"; // forces a read check on every item of metadata found. Not recommended for production use. 
     public static final String METADATASUBTYPEINCLUDEPATTERN = "metadatasubtypeincludepattern";
     public static final String FORCEINCLUDENAMES = "forceincludenames";
+    public static final String FORCEINCLUDEFIELDTYPES = "forceincludefieldtypes";
+    public static final String FORCEINCLUDEFIELDNAMESPACE = "forceincludenamespaces";
     public static final String INCLUDEALLVERSIONS = "includeallversions"; //For Flow backup
 }
