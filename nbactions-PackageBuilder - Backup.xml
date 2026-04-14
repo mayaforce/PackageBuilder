@@ -12,10 +12,10 @@
             <properties>
                 <exec.vmArgs></exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs>-b properties\packagebuilder.automaticbackup.properties -cproperties\connection.properties</exec.appArgs>
+                <exec.appArgs>-b properties\packagebuilder.backup.properties -cproperties\connection.properties</exec.appArgs>
                 <exec.mainClass>com.mayaforce.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
                 <exec.executable>java</exec.executable>
-                <exec.workingdir>D:\GitHub\PackageBuilder\target\classes</exec.workingdir>
+                <exec.workingdir>C:\repo\mayaforce\PackageBuilder</exec.workingdir>
             </properties>
         </action>
         <action>
@@ -30,11 +30,11 @@
             <properties>
                 <exec.vmArgs>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
-                <exec.appArgs>-b properties\packagebuilder.automaticbackup.properties -cproperties\connection.properties</exec.appArgs>
+                <exec.appArgs>-b properties\packagebuilder.backup.properties -cproperties\connection.properties</exec.appArgs>
                 <exec.mainClass>com.mayaforce.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
                 <exec.executable>java</exec.executable>
                 <jpda.listen>true</jpda.listen>
-                <exec.workingdir>D:\GitHub\PackageBuilder\target\classes</exec.workingdir>
+                <exec.workingdir>C:\repo\mayaforce\PackageBuilder</exec.workingdir>
             </properties>
         </action>
         <action>
@@ -51,8 +51,8 @@
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.mainClass>com.mayaforce.packagebuilder.PackageBuilderCommandLine</exec.mainClass>
                 <exec.executable>java</exec.executable>
-                <exec.appArgs>-b properties\packagebuilder.automaticbackup.properties -cproperties\connection.properties</exec.appArgs>
-                <exec.workingdir>D:\GitHub\PackageBuilder\target\classes</exec.workingdir>
+                <exec.appArgs>-b properties\packagebuilder.backup.properties -cproperties\connection.properties</exec.appArgs>
+                <exec.workingdir>C:\repo\mayaforce\PackageBuilder</exec.workingdir>
             </properties>
         </action>
     </actions>

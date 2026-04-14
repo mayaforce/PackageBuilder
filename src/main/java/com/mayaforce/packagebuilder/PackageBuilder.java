@@ -56,6 +56,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.http.util.EntityUtils;
@@ -497,25 +498,21 @@ public class PackageBuilder {
         }
     }
 
-    public static String buildQueryInClause(String fieldname, String[] namespace) {
-        if (namespace != null && namespace.length > 0) {
-            StringBuilder sb = new StringBuilder(" AND " + fieldname + " IN (");
+    public static String buildQueryInClause(String fieldname, ArrayList<String> namespace) {
 
-            for (int i = 0; i < namespace.length; i++) {
-                sb.append("'").append(namespace[i]).append("'");
-                if (i < namespace.length - 1) {
-                    sb.append(",");
-                }
-            }
+        if (namespace != null && !namespace.isEmpty()) {
+            String values = namespace.stream()
+                    .map(v -> "'" + v + "'")
+                    .collect(Collectors.joining(","));
 
-            sb.append(") ");
-            return sb.toString();
+            return " AND " + fieldname + " IN (" + values + ")";
         }
 
         return "";
+
     }
 
-    private void getFieldsByType(HashMap<String, InventoryItem> packageInventoryList, String[] namespaces, String[] fieldTypes) throws ConnectionException, UnsupportedEncodingException {
+    private void getFieldsByType(HashMap<String, InventoryItem> packageInventoryList, ArrayList<String> namespaces, ArrayList<String> fieldTypes) throws ConnectionException, UnsupportedEncodingException {
         DescribeMetadataObject customFieldMetadataObj = this.describeMetadataObjectsMap.get("CustomField");
 
         String soqlPartDataType = buildQueryInClause("DataType", fieldTypes);
@@ -532,10 +529,10 @@ public class PackageBuilder {
                 + // "AND DataType in ('Picklist', 'Picklist (Multi-Select)')\n" +
                 soqlPartNamespace
                 + // "AND NamespacePrefix IN ('agf', 'SBQQ')\n" +
-                "ORDER BY EntityDefinitionId, QualifiedApiName  ";
+                "ORDER BY EntityDefinitionId, QualifiedApiName";
         HttpClient httpClient = HttpClientBuilder.create().build();
 
-        String fullRestUrl = this.srcUrlBase + "/services/data/v" + this.myApiVersion + "/queries/?q=" + java.net.URLEncoder.encode(query, "ISO-8859-1");
+        String fullRestUrl = this.srcUrlBase + "/services/data/v" + this.myApiVersion + "/query/?q=" + java.net.URLEncoder.encode(query, "ISO-8859-1");
 
         logger.log(Level.FINE, "Full SOQL API URL: {0}", fullRestUrl);
         HttpGet httpGet = new HttpGet(fullRestUrl);
@@ -558,11 +555,12 @@ public class PackageBuilder {
                 for (int i = 0; i < j.size(); i++) {
                     JSONObject o = (JSONObject) j.get(i);
                     FileProperties customFieldFp = new FileProperties();
-                    String customFieldApiName = o.get("EntityDefinition.QualifiedApiName") + "." + o.get("QualifiedApiName");
+                    JSONObject edef = (JSONObject) o.get("EntityDefinition");
+                    String customFieldApiName = edef.get("QualifiedApiName") + "." + o.get("QualifiedApiName");
 
-                    customFieldFp.setCreatedById((String) o.get("CreatedById"));
-                    customFieldFp.setCreatedByName((String) o.get("CreatedById"));
-                    customFieldFp.setCreatedDate(getCalendarFromIso8601((String) o.get("CreatedDate")));
+//                    customFieldFp.setCreatedById((String) o.get("CreatedById"));
+//                    customFieldFp.setCreatedByName((String) o.get("CreatedById"));
+//                    customFieldFp.setCreatedDate(getCalendarFromIso8601((String) o.get("CreatedDate")));
                     customFieldFp.setFileName(customFieldMetadataObj.getDirectoryName() + "/" + customFieldApiName + "." + customFieldMetadataObj.getSuffix());
                     customFieldFp.setFullName(customFieldApiName);
                     customFieldFp.setId((String) o.get("Id")); //This will be wrong, but we don't use it. 
@@ -572,8 +570,8 @@ public class PackageBuilder {
                     customFieldFp.setManageableState(ManageableState.installedEditable);
                     //customFieldFp.setManageableState(flowInventoryItem.getFileProperties().getManageableState());
                     customFieldFp.setNamespacePrefix("NamespacePrefix");
-                    customFieldFp.setType("CustomObject");
-                    
+                    customFieldFp.setType("CustomField");
+
                     InventoryItem customFieldII = new InventoryItem(customFieldApiName, customFieldFp, customFieldMetadataObj);
                     customFieldII.setForceInclude(true);
                     customFieldII.setForceIncludeReason("Included through properties: " + PbProperties.FORCEINCLUDEFIELDTYPES + " and " + PbProperties.FORCEINCLUDEFIELDNAMESPACE);
@@ -733,14 +731,6 @@ public class PackageBuilder {
                                     getFlowVersions(i, packageInventoryList);
                                     logger.log(Level.FINEST, "End getFlowVersions");
                                 }
-                                if ("CustomField".equalsIgnoreCase(metadataType) && parameters.containsKey(metadataType + "." + PbProperties.FORCEINCLUDEFIELDNAMESPACE)  && parameters.containsKey(metadataType + "." + PbProperties.FORCEINCLUDEFIELDTYPES)) {
-                                    ArrayList<String> namespaces =  initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDEFIELDNAMESPACE));
-                                    ArrayList<String> fieldTypes =  initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDEFIELDTYPES));
-                                    
-                                    logger.log(Level.FINEST, "Begin getFieldsByType");
-                                    getFieldsByType(packageInventoryList, (String[]) namespaces.toArray(), (String[]) fieldTypes.toArray());
-                                    logger.log(Level.FINEST, "End getFieldsByType");
-                                }
 
                             } else {
                                 logger.log(Level.FINE, "skipping item {0} from {1} inventory.", new Object[]{n.getNamespacePrefix(), n.getFullName()});
@@ -761,6 +751,15 @@ public class PackageBuilder {
                 }
 
             } while (queryIterator.hasNext());
+
+            if ("CustomField".equalsIgnoreCase(metadataType) && parameters.containsKey(metadataType + "." + PbProperties.FORCEINCLUDEFIELDNAMESPACE) && parameters.containsKey(metadataType + "." + PbProperties.FORCEINCLUDEFIELDTYPES)) {
+                ArrayList<String> namespaces = initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDEFIELDNAMESPACE));
+                ArrayList<String> fieldTypes = initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDEFIELDTYPES));
+
+                logger.log(Level.FINEST, "Begin getFieldsByType");
+                getFieldsByType(packageInventoryList, namespaces, fieldTypes);
+                logger.log(Level.FINEST, "End getFieldsByType");
+            }
 
         } catch (final ConnectionException e) {
             // ce.printStackTrace();
@@ -1509,7 +1508,7 @@ public class PackageBuilder {
             if (mdType.equals("Flow")) {
                 activeSkipPattern += "\n* " + mdType + ".limittoactive                   " + limitToActive_r;
             }
-            if (mdType.equals("CustomField")){
+            if (mdType.equals("CustomField")) {
                 activeSkipPattern += "\n* -- Special Options. ";
                 activeSkipPattern += "\n* " + mdType + ".forceincludefieldtypes          " + parameters.getProperty(mdType + "." + PbProperties.FORCEINCLUDEFIELDTYPES);
                 activeSkipPattern += "\n* " + mdType + ".forceincludenamespaces          " + parameters.getProperty(mdType + "." + PbProperties.FORCEINCLUDEFIELDNAMESPACE);
@@ -1542,7 +1541,7 @@ public class PackageBuilder {
                 logger.log(Level.FINEST, "\nSkip pattern check on: {0}", metadataObjectName);
                 if (mdItem.isForceInclude()) {
                     forceInclude = true;
-                    mdItem.setIncludeReason("Force Include: " + mdItem.getForceIncludeReason() );
+                    mdItem.setIncludeReason("Force Include: " + mdItem.getForceIncludeReason());
                     break;
                 }
 
