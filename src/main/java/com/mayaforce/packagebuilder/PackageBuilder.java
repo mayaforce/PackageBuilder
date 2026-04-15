@@ -512,7 +512,7 @@ public class PackageBuilder {
 
     }
 
-    private void getFieldsByType(HashMap<String, InventoryItem> packageInventoryList, ArrayList<String> namespaces, ArrayList<String> fieldTypes) throws ConnectionException, UnsupportedEncodingException {
+    private void getFieldsByType(HashMap<String, InventoryItem> packageInventoryList, HashMap<String, InventoryItem> packageUnfilteredInventoryList, ArrayList<String> namespaces, ArrayList<String> fieldTypes) throws ConnectionException, UnsupportedEncodingException {
         DescribeMetadataObject customFieldMetadataObj = this.describeMetadataObjectsMap.get("CustomField");
 
         String soqlPartDataType = buildQueryInClause("DataType", fieldTypes);
@@ -558,26 +558,34 @@ public class PackageBuilder {
                     JSONObject edef = (JSONObject) o.get("EntityDefinition");
                     String customFieldApiName = edef.get("QualifiedApiName") + "." + o.get("QualifiedApiName");
 
+                    if (packageUnfilteredInventoryList.containsKey(customFieldApiName)) {
+                        InventoryItem customFieldIIExisting = packageUnfilteredInventoryList.get(customFieldApiName);
+                        customFieldIIExisting.setForceInclude(true);
+                        customFieldIIExisting.setForceIncludeReason("Included existing through properties: " + PbProperties.FORCEINCLUDEFIELDTYPES + " and " + PbProperties.FORCEINCLUDEFIELDNAMESPACE);
+                        packageInventoryList.put(customFieldApiName, customFieldIIExisting);
+
+                    } else {
+
 //                    customFieldFp.setCreatedById((String) o.get("CreatedById"));
 //                    customFieldFp.setCreatedByName((String) o.get("CreatedById"));
 //                    customFieldFp.setCreatedDate(getCalendarFromIso8601((String) o.get("CreatedDate")));
-                    customFieldFp.setFileName(customFieldMetadataObj.getDirectoryName() + "/" + customFieldApiName + "." + customFieldMetadataObj.getSuffix());
-                    customFieldFp.setFullName(customFieldApiName);
-                    customFieldFp.setId((String) o.get("Id")); //This will be wrong, but we don't use it. 
-                    customFieldFp.setLastModifiedById((String) o.get("LastModifiedById"));
-                    customFieldFp.setLastModifiedByName((String) o.get("LastModifiedById"));
-                    customFieldFp.setLastModifiedDate(getCalendarFromIso8601((String) o.get("LastModifiedDate")));
-                    customFieldFp.setManageableState(ManageableState.installedEditable);
-                    //customFieldFp.setManageableState(flowInventoryItem.getFileProperties().getManageableState());
-                    customFieldFp.setNamespacePrefix("NamespacePrefix");
-                    customFieldFp.setType("CustomField");
+                        customFieldFp.setFileName(customFieldMetadataObj.getDirectoryName() + "/" + customFieldApiName + "." + customFieldMetadataObj.getSuffix());
+                        customFieldFp.setFullName(customFieldApiName);
+                        customFieldFp.setId((String) o.get("Id")); //This will be wrong, but we don't use it. 
+                        customFieldFp.setLastModifiedById((String) o.get("LastModifiedById"));
+                        customFieldFp.setLastModifiedByName((String) o.get("LastModifiedById"));
+                        customFieldFp.setLastModifiedDate(getCalendarFromIso8601((String) o.get("LastModifiedDate")));
+                        customFieldFp.setManageableState(ManageableState.installedEditable);
+                        //customFieldFp.setManageableState(flowInventoryItem.getFileProperties().getManageableState());
+                        customFieldFp.setNamespacePrefix("NamespacePrefix");
+                        customFieldFp.setType("CustomField");
 
-                    InventoryItem customFieldII = new InventoryItem(customFieldApiName, customFieldFp, customFieldMetadataObj);
-                    customFieldII.setForceInclude(true);
-                    customFieldII.setForceIncludeReason("Included through properties: " + PbProperties.FORCEINCLUDEFIELDTYPES + " and " + PbProperties.FORCEINCLUDEFIELDNAMESPACE);
+                        InventoryItem customFieldII = new InventoryItem(customFieldApiName, customFieldFp, customFieldMetadataObj);
+                        customFieldII.setForceInclude(true);
+                        customFieldII.setForceIncludeReason("Included new through properties: " + PbProperties.FORCEINCLUDEFIELDTYPES + " and " + PbProperties.FORCEINCLUDEFIELDNAMESPACE);
 
-                    packageInventoryList.put(customFieldApiName, customFieldII);
-
+                        packageInventoryList.put(customFieldApiName, customFieldII);
+                    }
                 }
             } else {
                 Logger.getLogger(PackageBuilder.class.getName()).log(Level.SEVERE, response.toString());
@@ -611,6 +619,7 @@ public class PackageBuilder {
         long startTime = this.startTiming();
         //		final MetadataFetchReturnResult fetchResult = new MetadataFetchReturnResult(metadataType);
         final HashMap<String, InventoryItem> packageInventoryList = new HashMap<>();
+        final HashMap<String, InventoryItem> packageUnfilteredInventoryList = new HashMap<>();
         int metadataItemCount = 0;
 
         try {
@@ -687,11 +696,12 @@ public class PackageBuilder {
                 if (((srcMd != null) && (srcMd.length > 0)) || metadataType.equals("StandardValueSet")) {
                     if (!metadataType.equals("StandardValueSet")) { //List setup in PbConstants.java
                         for (final FileProperties n : srcMd) {
-
+                            InventoryItem i = new InventoryItem(n.getFullName(), n, this.describeMetadataObjectsMap.get(metadataType));
+                            packageUnfilteredInventoryList.put(n.getFullName(), i);
                             //Always look at InstalledPackages if they are included as a metadata type regardless of the namespace. 
                             if ((includeNamespacedItems || n.getNamespacePrefix() == null) || n.getNamespacePrefix().equals("") || (metadataType.equals("InstalledPackage"))) {
                                 // packageMap.add(n.getFullName());
-                                InventoryItem i = new InventoryItem(n.getFullName(), n, this.describeMetadataObjectsMap.get(metadataType));
+                                
 
                                 if (obj != null && obj.getInFolder()) {
                                     logger.log(Level.FINE, "Folder Detected {0} filename: {1}", new Object[]{obj.getXmlName(), i.getFileProperties().getFullName()});
@@ -757,7 +767,7 @@ public class PackageBuilder {
                 ArrayList<String> fieldTypes = initializeStringArray(parameters.getProperty(metadataType + "." + PbProperties.FORCEINCLUDEFIELDTYPES));
 
                 logger.log(Level.FINEST, "Begin getFieldsByType");
-                getFieldsByType(packageInventoryList, namespaces, fieldTypes);
+                getFieldsByType(packageInventoryList, packageUnfilteredInventoryList, namespaces, fieldTypes);
                 logger.log(Level.FINEST, "End getFieldsByType");
             }
 
@@ -1542,7 +1552,6 @@ public class PackageBuilder {
                 if (mdItem.isForceInclude()) {
                     forceInclude = true;
                     mdItem.setIncludeReason("Force Include: " + mdItem.getForceIncludeReason());
-                    break;
                 }
 
                 for (Pattern p : forceIncludePatterns_r) {
