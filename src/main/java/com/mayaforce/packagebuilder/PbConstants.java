@@ -21,7 +21,7 @@ package com.mayaforce.packagebuilder;
  */
 public class PbConstants {
 
-    public static final String DEFAULT_API_VERSION = "62.0"; 
+    public static final String DEFAULT_API_VERSION = "67.0"; 
     public static final boolean DEFAULT_INCLUDECHANGEDATA = true;
     // Static values that don't change
     public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
@@ -99,13 +99,19 @@ public class PbConstants {
     //   Salesforce Org Browser:     https://github.com/forcedotcom/source-deploy-retrieve/blob/main/src/registry/stdValueSetRegistry.json Unlikely to contain new values
 
     // Use regex \d$ to remove footnote numbers. Note that "RoleInTerritory2", ends in a 2 and not a footnote number
-    // AddressCountryCode an AddressStateCode are not listed on the documentation page. Manually added. Note that they are incompatible deploying with settings/Address.settings (state/country picklists feature)
+    // AddressCountryCode, , etc. are not listed on the documentation page. Manually added. Note that they are incompatible deploying with settings/Address.settings (state/country picklists feature)
     /*
     "AddressCountryCode",
     "AddressStateCode",
+    "ComplianceGroup",
+    "FieldBusinessStatus",
+    "SecurityClassification",
     */
     static final String[] STANDARDVALUETYPESARRAY = new String[]{
-"AAccreditationRating",
+    "ComplianceGroup",
+    "FieldBusinessStatus",
+    "SecurityClassification",
+    "AAccreditationRating",
 "AcademicCredentialType",
 "AcademicInterest",
 "AcademicLevel",
